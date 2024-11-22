@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title><%= title %> - <%= subtitle %></title>
+    
+    <!-- Meta tags -->
+    <meta name="description" content="<%= subtitle %> for <%= userHandle %>">
+    <meta name="author" content="<%= userHandle %>">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:title" content="<%= title %>">
+    <meta property="og:description" content="<%= subtitle %>">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="<%= title %>">
+    
+    <!-- Styles -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="card header-card">
+            <div class="logo-container">
+                <img src="/images/logo.svg" alt="<%= title %> Logo" class="logo">
+                <div class="title-container">
+                    <h1><%= title %></h1>
+                    <p class="subtitle"><%= subtitle %></p>
+                </div>
+            </div>
+            <div id="imported-count">Total Imported Users: <%= totalFollowers %></div>
+
+            <!-- Main User Stats -->
+            <div class="main-user-stats">
+                <h2>Your Account Stats</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-column="avatar">Avatar</th>
+                                <th data-column="handle">Handle</th>
+                                <th data-column="followers">Followers</th>
+                                <th data-column="following">Following</th>
+                                <th data-column="posts">Posts</th>
+                                <th data-column="postsPerDay">Posts/Day</th>
+                                <th data-column="followerRatio">Follower Ratio</th>
+                                <th data-column="joined">Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td data-column="avatar">
+                                    <% if (mainUser.avatar) { %>
+                                        <img src="<%= mainUser.avatar %>" alt="Your avatar" class="avatar">
+                                    <% } %>
+                                </td>
+                                <td data-column="handle">
+                                    <a href="https://bsky.app/profile/<%= mainUser.handle %>" target="_blank" rel="noopener noreferrer" class="profile-link">
+                                        <%= mainUser.handle %>
+                                    </a>
+                                </td>
+                                <td data-column="followers"><%= mainUser.followerCount %></td>
+                                <td data-column="following"><%= mainUser.followingCount %></td>
+                                <td data-column="posts"><%= mainUser.postCount %></td>
+                                <td data-column="postsPerDay"><%= mainUser.postsPerDay.toFixed(1) %></td>
+                                <td data-column="followerRatio"><%= mainUser.followerRatio.toFixed(1) %></td>
+                                <td data-column="joined"><%= new Date(mainUser.joinedAt).toISOString().split('T')[0] %></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="import-progress-container" class="progress-container" style="display: <%= isImporting ? 'block' : 'none' %>;">
+                <div class="progress-bar">
+                    <div id="progress-bar-fill" class="progress-bar-fill"></div>
+                </div>
+                <div id="progress-text" class="progress-text">Importing...</div>
+            </div>
+        </div>
+
+        <!-- Controls Section -->
+        <div class="card">
+            <!-- Column Controls Section -->
+            <div class="section-header" id="columnControlsHeader">Column Controls</div>
+            <div class="section-content" id="columnControlsContent">
+                <div class="column-controls">
+                    <label><input type="checkbox" class="column-toggle" id="col-avatar" checked> Avatar</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-handle" checked> Handle</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-followers" checked> Followers</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-following" checked> Following</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-posts" checked> Posts</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-postsPerDay" checked> Posts/Day</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-followerRatio" checked> Follower Ratio</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-joined" checked> Joined</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-lastPost" checked> Last Post</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-actions" checked> Actions</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="card">
+            <div class="section-header" id="filterHeader">Filters</div>
+            <div class="section-content" id="filterContent">
+                <form class="filter-form" onsubmit="applyFilters(event)">
+                    <div class="filter-group">
+                        <label>Followers</label>
+                        <input type="number" name="minFollowers" placeholder="Min" value="<%= filters.minFollowers %>">
+                        <input type="number" name="maxFollowers" placeholder="Max" value="<%= filters.maxFollowers %>">
+                    </div>
+                    <div class="filter-group">
+                        <label>Following</label>
+                        <input type="number" name="minFollowing" placeholder="Min" value="<%= filters.minFollowing %>">
+                        <input type="number" name="maxFollowing" placeholder="Max" value="<%= filters.maxFollowing %>">
+                    </div>
+                    <div class="filter-group">
+                        <label>Posts</label>
+                        <input type="number" name="minPosts" placeholder="Min" value="<%= filters.minPosts %>">
+                        <input type="number" name="maxPosts" placeholder="Max" value="<%= filters.maxPosts %>">
+                    </div>
+                    <div class="filter-group">
+                        <label>Posts per Day</label>
+                        <input type="number" step="0.1" name="minPostsPerDay" placeholder="Min" value="<%= filters.minPostsPerDay %>">
+                        <input type="number" step="0.1" name="maxPostsPerDay" placeholder="Max" value="<%= filters.maxPostsPerDay %>">
+                    </div>
+                    <div class="filter-group">
+                        <label>Follower Ratio</label>
+                        <input type="number" step="0.1" name="minFollowerRatio" placeholder="Min" value="<%= filters.minFollowerRatio %>">
+                        <input type="number" step="0.1" name="maxFollowerRatio" placeholder="Max" value="<%= filters.maxFollowerRatio %>">
+                    </div>
+                    <div class="filter-group">
+                        <label>Joined Date</label>
+                        <input type="date" name="minJoined" value="<%= filters.minJoined %>">
+                        <input type="date" name="maxJoined" value="<%= filters.maxJoined %>">
+                    </div>
+                    <div class="filter-group">
+                        <label>Last Post Date</label>
+                        <input type="date" name="minLastPost" value="<%= filters.minLastPost %>">
+                        <input type="date" name="maxLastPost" value="<%= filters.maxLastPost %>">
+                    </div>
+                    <button type="submit">Apply Filters</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Data Table Section -->
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-column="avatar">Avatar</th>
+                            <th class="sortable" data-column="handle">Handle</th>
+                            <th class="sortable" data-column="followers">Followers</th>
+                            <th class="sortable" data-column="following">Following</th>
+                            <th class="sortable" data-column="posts">Posts</th>
+                            <th class="sortable" data-column="postsPerDay">Posts/Day</th>
+                            <th class="sortable" data-column="followerRatio">Follower Ratio</th>
+                            <th class="sortable" data-column="joined">Joined</th>
+                            <th class="sortable" data-column="lastPost">Last Post</th>
+                            <th data-column="actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% followers.forEach(function(follower) { %>
+                            <tr>
+                                <td data-column="avatar">
+                                    <% if (follower.avatar) { %>
+                                        <img src="<%= follower.avatar %>" alt="<%= follower.handle %>'s avatar" class="avatar">
+                                    <% } %>
+                                </td>
+                                <td data-column="handle">
+                                    <a href="https://bsky.app/profile/<%= follower.handle %>" target="_blank" rel="noopener noreferrer" class="profile-link">
+                                        <%= follower.handle %>
+                                    </a>
+                                </td>
+                                <td data-column="followers"><%= follower.followerCount %></td>
+                                <td data-column="following"><%= follower.followingCount %></td>
+                                <td data-column="posts"><%= follower.postCount %></td>
+                                <td data-column="postsPerDay"><%= follower.postsPerDay.toFixed(1) %></td>
+                                <td data-column="followerRatio"><%= follower.followerRatio.toFixed(1) %></td>
+                                <td data-column="joined"><%= follower.joinedAt ? follower.joinedAt.toISOString().split('T')[0] : 'N/A' %></td>
+                                <td data-column="lastPost"><%= follower.lastPostAt ? follower.lastPostAt.toISOString().split('T')[0] : 'N/A' %></td>
+                                <td data-column="actions">
+                                    <button onclick="unfollowUser('<%= follower.did %>')">Unfollow</button>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination">
+                <% for(let i = 1; i <= totalPages; i++) { %>
+                    <a href="?page=<%= i %>" class="<%= currentPage === i ? 'current' : '' %>"><%= i %></a>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>

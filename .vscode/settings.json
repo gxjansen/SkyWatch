@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "*.ejs": "html"
+    },
+    "css.validate": false,
+    "less.validate": false,
+    "scss.validate": false,
+    "[html]": {
+        "editor.formatOnSave": true
+    },
+    "[typescript]": {
+        "editor.formatOnSave": true
+    },
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true
+}

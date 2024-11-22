@@ -1,0 +1,41 @@
+{
+  "name": "bsky-follower-tracker",
+  "version": "1.0.0",
+  "description": "BlueSky Follower Tracking Application",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "npm run build && node dist/index.js",
+    "start:server": "npm run build && node dist/server.js",
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only --pretty --ignore-watch node_modules src/index.ts",
+    "server": "./kill-port.sh && npx ts-node-dev --respawn --transpile-only --pretty --ignore-watch node_modules src/server.ts",
+    "server:force": "./kill-port.sh && npx ts-node-dev --respawn --transpile-only --pretty --ignore-watch node_modules src/server.ts --force-import",
+    "kill-port": "./kill-port.sh"
+  },
+  "keywords": [
+    "bluesky",
+    "atprotocol",
+    "followers"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@atproto/api": "latest",
+    "cli-progress": "^3.12.0",
+    "dotenv": "^16.0.3",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "mongodb": "^5.6.0",
+    "mongoose": "^7.3.1",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "@types/cli-progress": "^3.11.6",
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.3.1",
+    "@types/socket.io": "^3.0.2",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.1.3"
+  }
+}

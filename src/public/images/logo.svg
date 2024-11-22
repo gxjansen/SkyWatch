@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background Circle -->
+    <circle cx="100" cy="100" r="90" fill="#3291ff" opacity="0.15"/>
+    
+    <!-- Analytics Graph Lines -->
+    <path d="M40,140 Q70,60 100,100 T160,60" 
+          stroke="#3291ff" 
+          stroke-width="4" 
+          fill="none" 
+          stroke-linecap="round"/>
+    
+    <!-- Butterflies -->
+    <g transform="translate(60,80)">
+        <!-- First Butterfly -->
+        <g transform="rotate(-30)">
+            <!-- Left Wing -->
+            <path d="M-12,0 C-20,-8 -18,-15 -12,-18 C-6,-21 -2,-18 0,-12 C-2,-6 -4,-3 -12,0" 
+                  fill="#3291ff" stroke="#3291ff" stroke-width="1"/>
+            <!-- Right Wing -->
+            <path d="M12,0 C20,-8 18,-15 12,-18 C6,-21 2,-18 0,-12 C2,-6 4,-3 12,0" 
+                  fill="#3291ff" stroke="#3291ff" stroke-width="1"/>
+            <!-- Body -->
+            <path d="M0,-12 L0,2" stroke="#3291ff" stroke-width="2"/>
+            <!-- Antennae -->
+            <path d="M0,-12 Q-3,-15 -4,-18 M0,-12 Q3,-15 4,-18" 
+                  stroke="#3291ff" stroke-width="1" fill="none"/>
+        </g>
+    </g>
+    
+    <g transform="translate(120,60)">
+        <!-- Second Butterfly -->
+        <g transform="rotate(-15)">
+            <!-- Left Wing -->
+            <path d="M-12,0 C-20,-8 -18,-15 -12,-18 C-6,-21 -2,-18 0,-12 C-2,-6 -4,-3 -12,0" 
+                  fill="#3291ff" stroke="#3291ff" stroke-width="1"/>
+            <!-- Right Wing -->
+            <path d="M12,0 C20,-8 18,-15 12,-18 C6,-21 2,-18 0,-12 C2,-6 4,-3 12,0" 
+                  fill="#3291ff" stroke="#3291ff" stroke-width="1"/>
+            <!-- Body -->
+            <path d="M0,-12 L0,2" stroke="#3291ff" stroke-width="2"/>
+            <!-- Antennae -->
+            <path d="M0,-12 Q-3,-15 -4,-18 M0,-12 Q3,-15 4,-18" 
+                  stroke="#3291ff" stroke-width="1" fill="none"/>
+        </g>
+    </g>
+    
+    <g transform="translate(160,40)">
+        <!-- Third Butterfly -->
+        <g transform="rotate(0)">
+            <!-- Left Wing -->
+            <path d="M-12,0 C-20,-8 -18,-15 -12,-18 C-6,-21 -2,-18 0,-12 C-2,-6 -4,-3 -12,0" 
+                  fill="#3291ff" stroke="#3291ff" stroke-width="1"/>
+            <!-- Right Wing -->
+            <path d="M12,0 C20,-8 18,-15 12,-18 C6,-21 2,-18 0,-12 C2,-6 4,-3 12,0" 
+                  fill="#3291ff" stroke="#3291ff" stroke-width="1"/>
+            <!-- Body -->
+            <path d="M0,-12 L0,2" stroke="#3291ff" stroke-width="2"/>
+            <!-- Antennae -->
+            <path d="M0,-12 Q-3,-15 -4,-18 M0,-12 Q3,-15 4,-18" 
+                  stroke="#3291ff" stroke-width="1" fill="none"/>
+        </g>
+    </g>
+    
+    <!-- Connection Lines -->
+    <line x1="72" y1="80" x2="108" y2="60" stroke="#3291ff" stroke-width="2" opacity="0.5"/>
+    <line x1="132" y1="60" x2="148" y2="40" stroke="#3291ff" stroke-width="2" opacity="0.5"/>
+</svg>
