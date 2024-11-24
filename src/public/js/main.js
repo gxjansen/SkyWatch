@@ -18,6 +18,68 @@ const progressBarFill = document.getElementById('progress-bar-fill');
 const progressText = document.getElementById('progress-text');
 const followersTable = document.querySelector('.card:last-child table'); // Target specifically the followers table
 
+// Profile update functionality
+async function updateProfileData(retryDelay = 5000) {
+    try {
+        const response = await fetch('/api/profile');
+        
+        if (response.status === 429) {
+            // Handle rate limit
+            const data = await response.json();
+            const retryAfter = (data.retryAfter || 300) * 1000; // Convert to milliseconds
+            console.log(`Rate limited, will retry after ${retryAfter/1000} seconds`);
+            setTimeout(() => updateProfileData(Math.min(retryAfter * 2, 30000)), retryAfter);
+            return;
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const profile = await response.json();
+        
+        // Update profile data in the table
+        const mainUserRow = document.querySelector('.main-user-stats tbody tr');
+        if (mainUserRow) {
+            // Update avatar if it exists
+            const avatarCell = mainUserRow.querySelector('[data-column="avatar"]');
+            if (avatarCell && profile.avatar) {
+                avatarCell.innerHTML = `<img src="${profile.avatar}" alt="Your avatar" class="avatar">`;
+            }
+            
+            // Update handle with link
+            const handleCell = mainUserRow.querySelector('[data-column="handle"]');
+            if (handleCell) {
+                handleCell.innerHTML = `<a href="https://bsky.app/profile/${profile.handle}" target="_blank" rel="noopener noreferrer" class="profile-link">${profile.handle}</a>`;
+            }
+            
+            // Update numeric values
+            const cells = {
+                followers: profile.followerCount,
+                following: profile.followingCount,
+                posts: profile.postCount,
+                postsPerDay: profile.postsPerDay.toFixed(1),
+                followerRatio: profile.followerRatio.toFixed(1),
+                joined: new Date(profile.joinedAt).toISOString().split('T')[0]
+            };
+
+            Object.entries(cells).forEach(([key, value]) => {
+                const cell = mainUserRow.querySelector(`[data-column="${key}"]`);
+                if (cell) {
+                    cell.textContent = value;
+                }
+            });
+        }
+
+        // Schedule next update after success (5 minutes)
+        setTimeout(() => updateProfileData(), 5 * 60 * 1000);
+    } catch (error) {
+        console.error('Error updating profile data:', error);
+        // Retry with exponential backoff
+        setTimeout(() => updateProfileData(Math.min(retryDelay * 2, 30000)), retryDelay);
+    }
+}
+
 // Section collapse/expand functionality
 function initializeCollapsibleSection(headerId, contentId, storageKey) {
     const header = document.getElementById(headerId);
@@ -41,11 +103,17 @@ function initializeCollapsibleSection(headerId, contentId, storageKey) {
     });
 }
 
-// Initialize collapsible sections
+// Initialize collapsible sections and start profile updates
 document.addEventListener('DOMContentLoaded', () => {
     initializeCollapsibleSection('columnControlsHeader', 'columnControlsContent', 'columnControlsState');
     initializeCollapsibleSection('filterHeader', 'filterContent', 'filterState');
     loadColumnPreferences();
+    
+    // Start profile updates immediately
+    updateProfileData();
+    
+    // Start progress tracking
+    importProgressInterval = setInterval(checkImportProgress, 5000);
 });
 
 // Column visibility management
@@ -84,9 +152,8 @@ function saveColumnPreferences() {
 
 // Update column visibility
 function updateColumnVisibility(column, visible) {
-    // Update cells in the followers table
-    const cells = followersTable.querySelectorAll(`[data-column="${column}"]`);
-    cells.forEach(cell => {
+    // Update cells in both tables (main user and followers)
+    document.querySelectorAll(`[data-column="${column}"]`).forEach(cell => {
         cell.style.display = visible ? '' : 'none';
     });
 }
@@ -180,10 +247,10 @@ function checkImportProgress() {
         
         progressBarFill.style.width = `${progressPercentage}%`;
         progressText.textContent = `Importing: ${data.total} accounts`;
+        importedCountEl.textContent = `Total Imported Users: ${data.total}`;
 
         if (!data.isImporting) {
             clearInterval(importProgressInterval);
-            importedCountEl.textContent = `Total Imported Users: ${data.total}`;
             importProgressContainer.style.display = 'none';
         }
     })
@@ -191,11 +258,6 @@ function checkImportProgress() {
         console.error('Error checking import progress:', error);
     });
 }
-
-// Start progress tracking on page load
-document.addEventListener('DOMContentLoaded', () => {
-    importProgressInterval = setInterval(checkImportProgress, 5000);
-});
 
 // Filter form submission
 function applyFilters(event) {

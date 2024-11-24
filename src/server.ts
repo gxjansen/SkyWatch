@@ -8,7 +8,6 @@ import { ImportQueue } from './services/ImportQueue';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 
-// Type definitions
 interface FilterQuery {
   followerCount?: {
     $gte?: number;
@@ -70,6 +69,12 @@ interface MainUser {
   lastPostAt: string | null;
 }
 
+interface UnfollowRequest extends Request {
+  body: {
+    did: string;
+  };
+}
+
 dotenv.config();
 
 const app = express();
@@ -95,9 +100,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Validate required environment variables
+if (!process.env.BLUESKY_HANDLE || !process.env.BLUESKY_PASSWORD) {
+  throw new Error('BLUESKY_HANDLE and BLUESKY_PASSWORD must be set in .env file');
+}
+
 const blueSkyService = new BlueSkyService(
-  process.env.BLUESKY_HANDLE || '', 
-  process.env.BLUESKY_PASSWORD || ''
+  process.env.BLUESKY_HANDLE, 
+  process.env.BLUESKY_PASSWORD
 );
 
 const importQueue = new ImportQueue(blueSkyService);
@@ -107,82 +117,28 @@ mongoose.connect(process.env.MONGODB_URI || '')
   .then(() => console.log('MongoDB connected for web server'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Automatic import on server startup
-async function autoImport() {
+// Helper function to get user profile data
+async function getUserProfileData(): Promise<MainUser> {
   try {
-    // If force import is requested, start fresh
-    if (shouldForceImport) {
-      console.log('🔄 Force import requested, starting fresh import...');
-      await importQueue.startImport({ clearExisting: true });
-      return;
+    const authSuccess = await blueSkyService.authenticate();
+    if (!authSuccess) {
+      throw new Error('Authentication failed');
     }
 
-    // Check existing data
-    const existingCount = await Follower.countDocuments();
-    
-    // Authenticate to get the user's profile
-    await blueSkyService.authenticate();
-    const profile = await blueSkyService.getCurrentUserProfile();
-    const totalFollowers = profile.data.followsCount || 0;
-
-    if (existingCount === 0) {
-      // No existing data, start fresh import
-      console.log('🚀 No existing data found, starting fresh import...');
-      await importQueue.startImport({ clearExisting: true });
-    } else if (existingCount < totalFollowers) {
-      // Incomplete data, continue import
-      console.log(`📥 Found incomplete data (${existingCount}/${totalFollowers} followers), continuing import...`);
-      await importQueue.startImport({ clearExisting: false });
-    } else {
-      // Complete data, skip import
-      console.log(`✅ Using existing data (${existingCount}/${totalFollowers} followers). Use --force-import to start fresh.`);
-    }
-  } catch (error) {
-    console.error('❌ Automatic import failed:', error);
-  }
-}
-
-// Run auto import when server starts
-if (process.env.AUTO_IMPORT === 'true') {
-  autoImport();
-}
-
-// Simplified socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('Client connected to socket');
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected');
-  });
-
-  // Minimal data emission to prevent circular reference
-  socket.emit('importStatus', {
-    isImporting: importQueue.isCurrentlyImporting(),
-    total: 0
-  });
-});
-
-app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: NextFunction) => {
-  try {
-    const page = parseInt(req.query.page || '1');
-    const skip = (page - 1) * FOLLOWERS_PER_PAGE;
-
-    // Get main user profile data
-    await blueSkyService.authenticate();
     const mainUserProfile = await blueSkyService.getCurrentUserProfile();
     
-    // Calculate posts per day for main user
+    // Calculate posts per day
     const joinedDate = mainUserProfile.data.createdAt ? new Date(mainUserProfile.data.createdAt) : new Date();
     const daysSinceJoined = Math.max(1, Math.floor((Date.now() - joinedDate.getTime()) / (1000 * 60 * 60 * 24)));
     const postsCount = mainUserProfile.data.postsCount || 0;
     const postsPerDay = postsCount / daysSinceJoined;
     
-    // Calculate follower ratio for main user
+    // Calculate follower ratio
     const followersCount = mainUserProfile.data.followersCount || 0;
-    const followsCount = mainUserProfile.data.followsCount || 1; // Prevent division by zero
+    const followsCount = mainUserProfile.data.followsCount || 1;
     const followerRatio = followersCount / followsCount;
 
-    const mainUser: MainUser = {
+    return {
       handle: mainUserProfile.data.handle || '',
       avatar: mainUserProfile.data.avatar || '',
       followerCount: followersCount,
@@ -191,13 +147,111 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       postsPerDay: Number(postsPerDay.toFixed(1)),
       followerRatio: Number(followerRatio.toFixed(1)),
       joinedAt: mainUserProfile.data.createdAt || new Date().toISOString(),
-      lastPostAt: null // We would need an additional API call to get this
+      lastPostAt: null
     };
+  } catch (error) {
+    console.error('Failed to get initial profile data:', error);
+    // Return default values
+    return {
+      handle: process.env.BLUESKY_HANDLE || '',
+      avatar: '',
+      followerCount: 0,
+      followingCount: 0,
+      postCount: 0,
+      postsPerDay: 0,
+      followerRatio: 0,
+      joinedAt: new Date().toISOString(),
+      lastPostAt: null
+    };
+  }
+}
+
+// Automatic import function remains the same...
+async function autoImport() {
+  try {
+    const authSuccess = await blueSkyService.authenticate();
+    if (!authSuccess) {
+      throw new Error('Failed to authenticate with BlueSky. Please check your credentials.');
+    }
+
+    if (shouldForceImport) {
+      console.log('🔄 Force import requested, starting fresh import...');
+      await importQueue.startImport({ clearExisting: true });
+      return;
+    }
+
+    const existingCount = await Follower.countDocuments();
+    const profile = await blueSkyService.getCurrentUserProfile();
+    const totalFollowers = profile.data.followsCount || 0;
+
+    if (existingCount === 0) {
+      console.log('🚀 No existing data found, starting fresh import...');
+      await importQueue.startImport({ clearExisting: true });
+    } else if (existingCount < totalFollowers) {
+      console.log(`📥 Found incomplete data (${existingCount}/${totalFollowers} followers), continuing import...`);
+      await importQueue.startImport({ clearExisting: false });
+    } else {
+      console.log(`✅ Using existing data (${existingCount}/${totalFollowers} followers). Use --force-import to start fresh.`);
+    }
+  } catch (error) {
+    console.error('❌ Automatic import failed:', error);
+    throw error;
+  }
+}
+
+// Run auto import when server starts
+if (process.env.AUTO_IMPORT === 'true') {
+  autoImport().catch(error => {
+    console.error('Fatal error during auto-import:', error);
+    // Don't exit the process, just log the error
+    console.error('Import failed but server will continue running');
+  });
+}
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected to socket');
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
+
+  socket.emit('importStatus', {
+    isImporting: importQueue.isCurrentlyImporting(),
+    total: 0
+  });
+});
+
+// API endpoint to get user profile
+app.get('/api/profile', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const mainUser = await getUserProfileData();
+    res.json(mainUser);
+  } catch (error: any) {
+    if (error?.status === 429) {
+      res.status(429).json({ 
+        error: 'Rate limit exceeded', 
+        retryAfter: error?.headers?.['retry-after'] || 300 
+      });
+    } else {
+      next(error);
+    }
+  }
+});
+
+// Main page route
+app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: NextFunction) => {
+  try {
+    const page = parseInt(req.query.page || '1');
+    const skip = (page - 1) * FOLLOWERS_PER_PAGE;
+
+    // Get initial profile data
+    const mainUser = await getUserProfileData();
 
     // Filter parameters
     const filters: FilterQuery = {};
 
-    // Follower count filter
+    // Add filter logic for each parameter...
     if (req.query.minFollowers) {
       filters.followerCount = { $gte: parseInt(req.query.minFollowers) };
     }
@@ -274,17 +328,15 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       };
     }
 
-    // Fetch total followers with filters
+    // Fetch data from database
     const totalFollowers = await Follower.countDocuments(filters);
     const totalPages = Math.ceil(totalFollowers / FOLLOWERS_PER_PAGE);
 
-    // Fetch followers with filters
     const followers = await Follower.find(filters)
       .sort({ followedAt: -1 })
       .skip(skip)
       .limit(FOLLOWERS_PER_PAGE);
 
-    // Get min and max values for filter ranges
     const aggregateStats = await Follower.aggregate([
       {
         $group: {
@@ -315,7 +367,7 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       isImporting: importQueue.isCurrentlyImporting(),
       title: 'SkyWatch',
       subtitle: 'BlueSky Follower Analytics & Management',
-      userHandle: mainUserProfile.data.handle || '',
+      userHandle: mainUser.handle,
       stats: aggregateStats[0] || {},
       filters: req.query,
       mainUser
@@ -325,15 +377,14 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
   }
 });
 
-// Add a new endpoint to trigger manual import
+// Other routes remain the same...
 app.post('/start-import', async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (importQueue.isCurrentlyImporting()) {
       return res.status(400).json({ success: false, message: 'Import already in progress' });
     }
 
-    // Start new import
-    autoImport();
+    await autoImport();
     res.json({ success: true, message: 'Import started' });
   } catch (error) {
     next(error);
@@ -352,12 +403,6 @@ app.get('/import-progress', async (req: Request, res: Response) => {
   }
 });
 
-interface UnfollowRequest extends Request {
-  body: {
-    did: string;
-  };
-}
-
 app.post('/unfollow', async (req: UnfollowRequest, res: Response, next: NextFunction) => {
   try {
     const { did } = req.body;
@@ -366,7 +411,11 @@ app.post('/unfollow', async (req: UnfollowRequest, res: Response, next: NextFunc
       return res.status(400).json({ success: false, message: 'DID is required' });
     }
 
-    await blueSkyService.authenticate();
+    const authSuccess = await blueSkyService.authenticate();
+    if (!authSuccess) {
+      throw new Error('Failed to authenticate with BlueSky');
+    }
+
     const unfollowResult = await blueSkyService.unfollowUser(did);
 
     if (unfollowResult) {
@@ -379,6 +428,7 @@ app.post('/unfollow', async (req: UnfollowRequest, res: Response, next: NextFunc
   }
 });
 
+// Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err);
   res.status(500).json({ 
