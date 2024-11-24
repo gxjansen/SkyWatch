@@ -101,10 +101,9 @@ interface QueryParams {
   sortOrder?: 'asc' | 'desc';
 }
 
-// Update the MainUser interface to include displayName
 interface MainUser {
   handle: string;
-  displayName?: string;  // Add optional displayName
+  displayName?: string;
   avatar: string;
   followerCount: number;
   followingCount: number;
@@ -138,7 +137,7 @@ async function getUserProfileData(blueSkyService: BlueSkyService): Promise<MainU
 
     return {
       handle: mainUserProfile.data.handle || '',
-      displayName: mainUserProfile.data.displayName || mainUserProfile.data.handle,  // Add displayName
+      displayName: mainUserProfile.data.displayName || mainUserProfile.data.handle,
       avatar: mainUserProfile.data.avatar || '',
       followerCount: followersCount,
       followingCount: followsCount,
@@ -153,7 +152,7 @@ async function getUserProfileData(blueSkyService: BlueSkyService): Promise<MainU
     // Return default values
     return {
       handle: process.env.BLUESKY_HANDLE || '',
-      displayName: process.env.BLUESKY_HANDLE || '',  // Add displayName
+      displayName: process.env.BLUESKY_HANDLE || '',
       avatar: '',
       followerCount: 0,
       followingCount: 0,
@@ -180,6 +179,29 @@ app.get('/api/profile', async (req: Request, res: Response, next: NextFunction) 
     } else {
       next(error);
     }
+  }
+});
+
+// Unfollow endpoint
+app.post('/unfollow', async (req: Request, res: Response) => {
+  try {
+    const { did } = req.body;
+    if (!did) {
+      return res.status(400).json({ success: false, message: 'DID is required' });
+    }
+
+    const success = await blueSkyService.unfollowUser(did);
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ success: false, message: 'Failed to unfollow user' });
+    }
+  } catch (error: any) {
+    console.error('Error in unfollow endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'An error occurred while unfollowing the user'
+    });
   }
 });
 
