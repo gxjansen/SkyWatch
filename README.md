@@ -45,8 +45,8 @@ Additional features include:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/bsky-follower-tracker.git
-cd bsky-follower-tracker
+git clone https://github.com/gxjansen/SkyWatch
+cd SkyWatch
 ```
 
 2. Install dependencies:
