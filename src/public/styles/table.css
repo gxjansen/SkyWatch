@@ -5,6 +5,8 @@
     -webkit-overflow-scrolling: touch;
     margin: var(--gap-medium) 0;
     border-radius: var(--border-radius);
+    /* Prevent table from causing horizontal scroll on parent */
+    min-width: 0;
 }
 
 /* Table Styling */
@@ -13,7 +15,8 @@ table {
     border-collapse: separate;
     border-spacing: 0;
     background: var(--card-background);
-    min-width: 1200px;
+    /* Change from fixed min-width to fit-content */
+    min-width: fit-content;
     table-layout: fixed;
 }
 

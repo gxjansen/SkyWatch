@@ -1,15 +1,29 @@
 /* Base Typography */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
 html {
     font-size: 16px;
 }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    margin: 0;
-    padding: var(--container-padding);
     background-color: var(--background-color);
     color: var(--text-primary);
     line-height: 1.6;
+    /* Add only vertical padding */
+    padding-top: var(--container-padding);
+    padding-bottom: var(--container-padding);
+    /* Ensure content is centered */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
 }
 
 /* Header Styling */

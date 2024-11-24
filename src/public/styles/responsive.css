@@ -1,7 +1,20 @@
 /* Responsive Styles */
+@media (max-width: 1440px) {
+    /* Ensure container padding scales well on medium screens */
+    .container {
+        padding-left: var(--container-padding);
+        padding-right: var(--container-padding);
+    }
+}
+
 @media (max-width: 768px) {
     html {
         font-size: 14px;
+    }
+
+    .container {
+        padding-left: var(--gap-medium);
+        padding-right: var(--gap-medium);
     }
 
     .card {
@@ -95,6 +108,11 @@
     body {
         padding: 0;
         background: white;
+    }
+
+    .container {
+        padding: 0;
+        max-width: 100%;
     }
 
     .card {
