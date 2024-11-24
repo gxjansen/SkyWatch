@@ -405,15 +405,58 @@ table {
     border-collapse: separate;
     border-spacing: 0;
     background: var(--card-background);
-    min-width: 800px;
+    min-width: 1200px;
+    table-layout: fixed;
 }
 
 th, td {
     padding: var(--gap-medium);
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-    white-space: nowrap;
     color: var(--text-primary);
+}
+
+/* Column width definitions */
+th[data-column="avatar"], td[data-column="avatar"] {
+    width: 60px;
+}
+
+th[data-column="displayName"], td[data-column="displayName"] {
+    width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+th[data-column="handle"], td[data-column="handle"] {
+    width: 140px;
+}
+
+th[data-column="followerCount"], td[data-column="followerCount"],
+th[data-column="followingCount"], td[data-column="followingCount"],
+th[data-column="postCount"], td[data-column="postCount"] {
+    width: 100px;
+}
+
+th[data-column="postsPerDay"], td[data-column="postsPerDay"],
+th[data-column="followerRatio"], td[data-column="followerRatio"] {
+    width: 100px;
+}
+
+th[data-column="joinedAt"], td[data-column="joinedAt"],
+th[data-column="lastPostAt"], td[data-column="lastPostAt"] {
+    width: 120px;
+}
+
+th[data-column="actions"], td[data-column="actions"] {
+    width: 100px;
+}
+
+/* Ensure all cells handle overflow consistently */
+td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 th {
@@ -425,7 +468,7 @@ th {
 th.sortable {
     cursor: pointer;
     position: relative;
-    padding-right: 25px; /* Make room for the sort indicator */
+    padding-right: 25px;
     user-select: none;
     transition: background-color var(--transition-speed);
 }
@@ -621,6 +664,11 @@ button[type="submit"]:hover {
     th, td {
         padding: 12px;
         font-size: 0.9rem;
+    }
+
+    /* Adjust name column max-width for mobile */
+    td[data-column="displayName"] {
+        max-width: 150px;
     }
 
     .avatar {
