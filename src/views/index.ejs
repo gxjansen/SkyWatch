@@ -41,6 +41,7 @@
                         <thead>
                             <tr>
                                 <th data-column="avatar">Avatar</th>
+                                <th data-column="name">Name</th>
                                 <th data-column="handle">Handle</th>
                                 <th data-column="followers">Followers</th>
                                 <th data-column="following">Following</th>
@@ -56,6 +57,9 @@
                                     <% if (mainUser.avatar) { %>
                                         <img src="<%= mainUser.avatar %>" alt="Your avatar" class="avatar">
                                     <% } %>
+                                </td>
+                                <td data-column="name">
+                                    <%= mainUser.displayName || mainUser.handle %>
                                 </td>
                                 <td data-column="handle">
                                     <a href="https://bsky.app/profile/<%= mainUser.handle %>" target="_blank" rel="noopener noreferrer" class="profile-link">
@@ -82,13 +86,13 @@
             </div>
         </div>
 
-        <!-- Controls Section -->
+        <!-- Column Controls Section -->
         <div class="card">
-            <!-- Column Controls Section -->
             <div class="section-header" id="columnControlsHeader">Column Controls</div>
             <div class="section-content" id="columnControlsContent">
                 <div class="column-controls">
                     <label><input type="checkbox" class="column-toggle" id="col-avatar" checked> Avatar</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-name" checked> Name</label>
                     <label><input type="checkbox" class="column-toggle" id="col-handle" checked> Handle</label>
                     <label><input type="checkbox" class="column-toggle" id="col-followers" checked> Followers</label>
                     <label><input type="checkbox" class="column-toggle" id="col-following" checked> Following</label>
@@ -154,6 +158,7 @@
                     <thead>
                         <tr>
                             <th data-column="avatar">Avatar</th>
+                            <th class="sortable" data-column="name">Name</th>
                             <th class="sortable" data-column="handle">Handle</th>
                             <th class="sortable" data-column="followers">Followers</th>
                             <th class="sortable" data-column="following">Following</th>
@@ -172,6 +177,9 @@
                                     <% if (follower.avatar) { %>
                                         <img src="<%= follower.avatar %>" alt="<%= follower.handle %>'s avatar" class="avatar">
                                     <% } %>
+                                </td>
+                                <td data-column="name">
+                                    <%= follower.displayName || follower.handle %>
                                 </td>
                                 <td data-column="handle">
                                     <a href="https://bsky.app/profile/<%= follower.handle %>" target="_blank" rel="noopener noreferrer" class="profile-link">

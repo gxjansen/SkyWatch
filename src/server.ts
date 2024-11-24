@@ -8,6 +8,48 @@ import { ImportQueue } from './services/ImportQueue';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 
+dotenv.config();
+
+const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  pingTimeout: 60000,
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+const PORT = process.env.PORT || 3000;
+const FOLLOWERS_PER_PAGE = 100;
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const shouldForceImport = args.includes('--force-import');
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// Validate required environment variables
+if (!process.env.BLUESKY_HANDLE || !process.env.BLUESKY_PASSWORD) {
+  throw new Error('BLUESKY_HANDLE and BLUESKY_PASSWORD must be set in .env file');
+}
+
+const blueSkyService = new BlueSkyService(
+  process.env.BLUESKY_HANDLE, 
+  process.env.BLUESKY_PASSWORD
+);
+
+const importQueue = new ImportQueue(blueSkyService);
+importQueue.setSocketServer(io);
+
+mongoose.connect(process.env.MONGODB_URI || '')
+  .then(() => console.log('MongoDB connected for web server'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
 interface FilterQuery {
   followerCount?: {
     $gte?: number;
@@ -57,8 +99,10 @@ interface QueryParams {
   maxLastPost?: string;
 }
 
+// Update the MainUser interface to include displayName
 interface MainUser {
   handle: string;
+  displayName?: string;  // Add optional displayName
   avatar: string;
   followerCount: number;
   followingCount: number;
@@ -69,56 +113,8 @@ interface MainUser {
   lastPostAt: string | null;
 }
 
-interface UnfollowRequest extends Request {
-  body: {
-    did: string;
-  };
-}
-
-dotenv.config();
-
-const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  pingTimeout: 60000,
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-const PORT = process.env.PORT || 3000;
-const FOLLOWERS_PER_PAGE = 100;
-
-// Parse command line arguments
-const args = process.argv.slice(2);
-const shouldForceImport = args.includes('--force-import');
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// Validate required environment variables
-if (!process.env.BLUESKY_HANDLE || !process.env.BLUESKY_PASSWORD) {
-  throw new Error('BLUESKY_HANDLE and BLUESKY_PASSWORD must be set in .env file');
-}
-
-const blueSkyService = new BlueSkyService(
-  process.env.BLUESKY_HANDLE, 
-  process.env.BLUESKY_PASSWORD
-);
-
-const importQueue = new ImportQueue(blueSkyService);
-importQueue.setSocketServer(io);
-
-mongoose.connect(process.env.MONGODB_URI || '')
-  .then(() => console.log('MongoDB connected for web server'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
 // Helper function to get user profile data
-async function getUserProfileData(): Promise<MainUser> {
+async function getUserProfileData(blueSkyService: BlueSkyService): Promise<MainUser> {
   try {
     const authSuccess = await blueSkyService.authenticate();
     if (!authSuccess) {
@@ -140,6 +136,7 @@ async function getUserProfileData(): Promise<MainUser> {
 
     return {
       handle: mainUserProfile.data.handle || '',
+      displayName: mainUserProfile.data.displayName || mainUserProfile.data.handle,  // Add displayName
       avatar: mainUserProfile.data.avatar || '',
       followerCount: followersCount,
       followingCount: followsCount,
@@ -154,6 +151,7 @@ async function getUserProfileData(): Promise<MainUser> {
     // Return default values
     return {
       handle: process.env.BLUESKY_HANDLE || '',
+      displayName: process.env.BLUESKY_HANDLE || '',  // Add displayName
       avatar: '',
       followerCount: 0,
       followingCount: 0,
@@ -166,66 +164,10 @@ async function getUserProfileData(): Promise<MainUser> {
   }
 }
 
-// Automatic import function remains the same...
-async function autoImport() {
-  try {
-    const authSuccess = await blueSkyService.authenticate();
-    if (!authSuccess) {
-      throw new Error('Failed to authenticate with BlueSky. Please check your credentials.');
-    }
-
-    if (shouldForceImport) {
-      console.log('🔄 Force import requested, starting fresh import...');
-      await importQueue.startImport({ clearExisting: true });
-      return;
-    }
-
-    const existingCount = await Follower.countDocuments();
-    const profile = await blueSkyService.getCurrentUserProfile();
-    const totalFollowers = profile.data.followsCount || 0;
-
-    if (existingCount === 0) {
-      console.log('🚀 No existing data found, starting fresh import...');
-      await importQueue.startImport({ clearExisting: true });
-    } else if (existingCount < totalFollowers) {
-      console.log(`📥 Found incomplete data (${existingCount}/${totalFollowers} followers), continuing import...`);
-      await importQueue.startImport({ clearExisting: false });
-    } else {
-      console.log(`✅ Using existing data (${existingCount}/${totalFollowers} followers). Use --force-import to start fresh.`);
-    }
-  } catch (error) {
-    console.error('❌ Automatic import failed:', error);
-    throw error;
-  }
-}
-
-// Run auto import when server starts
-if (process.env.AUTO_IMPORT === 'true') {
-  autoImport().catch(error => {
-    console.error('Fatal error during auto-import:', error);
-    // Don't exit the process, just log the error
-    console.error('Import failed but server will continue running');
-  });
-}
-
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('Client connected to socket');
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected');
-  });
-
-  socket.emit('importStatus', {
-    isImporting: importQueue.isCurrentlyImporting(),
-    total: 0
-  });
-});
-
 // API endpoint to get user profile
 app.get('/api/profile', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const mainUser = await getUserProfileData();
+    const mainUser = await getUserProfileData(blueSkyService);
     res.json(mainUser);
   } catch (error: any) {
     if (error?.status === 429) {
@@ -246,7 +188,7 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
     const skip = (page - 1) * FOLLOWERS_PER_PAGE;
 
     // Get initial profile data
-    const mainUser = await getUserProfileData();
+    const mainUser = await getUserProfileData(blueSkyService);
 
     // Filter parameters
     const filters: FilterQuery = {};
@@ -377,73 +319,14 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
   }
 });
 
-// Other routes remain the same...
-app.post('/start-import', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    if (importQueue.isCurrentlyImporting()) {
-      return res.status(400).json({ success: false, message: 'Import already in progress' });
-    }
-
-    await autoImport();
-    res.json({ success: true, message: 'Import started' });
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.get('/import-progress', async (req: Request, res: Response) => {
-  try {
-    const importedFollowersCount = await Follower.countDocuments();
-    res.json({ 
-      total: importedFollowersCount,
-      isImporting: importQueue.isCurrentlyImporting()
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch import progress' });
-  }
-});
-
-app.post('/unfollow', async (req: UnfollowRequest, res: Response, next: NextFunction) => {
-  try {
-    const { did } = req.body;
-
-    if (!did) {
-      return res.status(400).json({ success: false, message: 'DID is required' });
-    }
-
-    const authSuccess = await blueSkyService.authenticate();
-    if (!authSuccess) {
-      throw new Error('Failed to authenticate with BlueSky');
-    }
-
-    const unfollowResult = await blueSkyService.unfollowUser(did);
-
-    if (unfollowResult) {
-      res.json({ success: true, message: 'Successfully unfollowed user' });
-    } else {
-      res.status(500).json({ success: false, message: 'Failed to unfollow user' });
-    }
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Error handling middleware
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err);
-  res.status(500).json({ 
-    success: false, 
-    message: 'An unexpected error occurred',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined 
-  });
-});
-
+// Add the startServer function
 function startServer() {
   return httpServer.listen(PORT, () => {
     console.log(`Web server running on http://localhost:${PORT}`);
   });
 }
 
+// Ensure the server can be started if this file is run directly
 if (require.main === module) {
   startServer();
 }
