@@ -1,0 +1,110 @@
+/* Button Styling */
+button {
+    padding: 10px 20px;
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all var(--transition-speed);
+    white-space: nowrap;
+}
+
+button:hover {
+    background-color: var(--danger-hover);
+    transform: translateY(-1px);
+}
+
+button[type="submit"] {
+    background-color: var(--primary-color);
+    width: 100%;
+    margin-top: var(--gap-medium);
+}
+
+button[type="submit"]:hover {
+    filter: brightness(1.1);
+}
+
+/* Avatar */
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+/* Pagination */
+.pagination {
+    margin-top: var(--gap-large);
+    display: flex;
+    justify-content: center;
+    gap: var(--gap-small);
+    flex-wrap: wrap;
+    padding: var(--gap-small);
+}
+
+.pagination a {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all var(--transition-speed);
+    min-width: 24px;
+    text-align: center;
+    background-color: var(--card-background);
+}
+
+.pagination a:hover {
+    background-color: var(--hover-background);
+    border-color: var(--primary-color);
+}
+
+.pagination .current {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Dynamic Update Notification */
+.dynamic-update-notification {
+    background-color: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--gap-medium);
+    margin-bottom: var(--gap-medium);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-small);
+}
+
+.dynamic-update-notification::before {
+    content: 'i';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--text-secondary);
+    border-radius: 50%;
+    font-style: italic;
+    font-family: serif;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+/* Stats Display */
+#imported-count {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--gap-medium);
+    padding: var(--gap-medium);
+    background: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    border: 1px solid var(--border-color);
+}

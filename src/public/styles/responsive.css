@@ -1,0 +1,125 @@
+/* Responsive Styles */
+@media (max-width: 768px) {
+    html {
+        font-size: 14px;
+    }
+
+    .card {
+        padding: 16px;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    .title-dynamic {
+        font-size: 0.85em;
+    }
+
+    .logo {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .logo-container {
+        gap: var(--gap-medium);
+    }
+
+    .subtitle {
+        font-size: 0.9rem;
+    }
+
+    .column-controls {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: var(--gap-small);
+    }
+
+    .filter-form {
+        grid-template-columns: 1fr;
+        gap: var(--gap-medium);
+    }
+
+    th, td {
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+
+    /* Adjust name column max-width for mobile */
+    td[data-column="displayName"] {
+        max-width: 150px;
+    }
+
+    .avatar {
+        width: 32px;
+        height: 32px;
+    }
+
+    #imported-count {
+        font-size: 1rem;
+        padding: var(--gap-small);
+    }
+
+    button {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+
+    .pagination a {
+        padding: 6px 12px;
+        min-width: 20px;
+    }
+
+    .loading-text {
+        font-size: 0.8rem;
+    }
+
+    .loading-text::after {
+        width: 10px;
+        height: 10px;
+    }
+
+    .dynamic-update-notification {
+        font-size: 0.8rem;
+        padding: var(--gap-small);
+    }
+
+    .dynamic-update-notification::before {
+        width: 16px;
+        height: 16px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Print Styles */
+@media print {
+    body {
+        padding: 0;
+        background: white;
+    }
+
+    .card {
+        box-shadow: none;
+        padding: 0;
+        margin-bottom: 20px;
+    }
+
+    .section-header,
+    .pagination,
+    button {
+        display: none;
+    }
+
+    .section-content {
+        display: block !important;
+        border: none;
+        padding: 0;
+    }
+
+    table {
+        border: 1px solid #ddd;
+    }
+
+    th, td {
+        border: 1px solid #ddd;
+    }
+}

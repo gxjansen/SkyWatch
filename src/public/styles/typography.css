@@ -1,0 +1,95 @@
+/* Base Typography */
+html {
+    font-size: 16px;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    margin: 0;
+    padding: var(--container-padding);
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* Header Styling */
+h1 {
+    margin: 0;
+    font-size: 2rem;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.title-static {
+    color: var(--title-static-color);
+    font-weight: 600;
+}
+
+.title-dynamic {
+    color: var(--title-dynamic-color);
+    font-weight: 400;
+    font-size: 0.9em;
+}
+
+/* Profile Link Styling */
+.profile-link {
+    color: var(--link-color);
+    text-decoration: none;
+    transition: color var(--transition-speed);
+    position: relative;
+    display: inline-block;
+}
+
+.profile-link:hover {
+    color: var(--link-hover);
+}
+
+.profile-link::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    bottom: -2px;
+    left: 0;
+    background-color: var(--link-hover);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--transition-speed);
+}
+
+.profile-link:hover::after {
+    transform: scaleX(1);
+}
+
+/* Loading Text Styles */
+.loading-text {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    gap: var(--gap-small);
+    opacity: 0.8;
+}
+
+.loading-text::after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--text-secondary);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s infinite linear;
+}
+
+.rate-limited .loading-text::after {
+    border-color: var(--danger-color);
+    border-top-color: transparent;
+    animation-duration: 2s;
+}
+
+.rate-limited .loading-text {
+    color: var(--danger-color);
+}

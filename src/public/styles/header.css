@@ -1,0 +1,76 @@
+/* Logo and Header Styles */
+.header-card {
+    padding-top: var(--gap-large);
+    padding-bottom: var(--gap-large);
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-large);
+    margin-bottom: var(--gap-large);
+}
+
+.title-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-small);
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+.logo {
+    width: 60px;
+    height: 60px;
+    transition: transform var(--transition-speed);
+}
+
+.logo:hover {
+    transform: scale(1.05);
+}
+
+/* Main User Stats */
+.main-user-stats {
+    margin: var(--gap-large) 0;
+    padding: var(--gap-medium);
+    background: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    border: 1px solid var(--border-color);
+}
+
+.main-user-stats h2 {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    margin: 0 0 var(--gap-medium) 0;
+    font-weight: 600;
+}
+
+.main-user-stats .table-container {
+    margin: 0;
+}
+
+.main-user-stats table {
+    margin: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.main-user-stats th {
+    background-color: var(--hover-background);
+    font-size: 0.9rem;
+    padding: var(--gap-small) var(--gap-medium);
+    color: var(--text-primary);
+}
+
+.main-user-stats td {
+    font-size: 0.95rem;
+    padding: var(--gap-medium);
+    background-color: var(--card-background);
+    color: var(--text-primary);
+}

@@ -1,0 +1,113 @@
+/* Table Container */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: var(--gap-medium) 0;
+    border-radius: var(--border-radius);
+}
+
+/* Table Styling */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--card-background);
+    min-width: 1200px;
+    table-layout: fixed;
+}
+
+th, td {
+    padding: var(--gap-medium);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Column width definitions */
+th[data-column="avatar"], td[data-column="avatar"] {
+    width: 60px;
+}
+
+th[data-column="displayName"], td[data-column="displayName"] {
+    width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+th[data-column="handle"], td[data-column="handle"] {
+    width: 140px;
+}
+
+th[data-column="followerCount"], td[data-column="followerCount"],
+th[data-column="followingCount"], td[data-column="followingCount"],
+th[data-column="postCount"], td[data-column="postCount"] {
+    width: 100px;
+}
+
+th[data-column="postsPerDay"], td[data-column="postsPerDay"],
+th[data-column="followerRatio"], td[data-column="followerRatio"] {
+    width: 100px;
+}
+
+th[data-column="joinedAt"], td[data-column="joinedAt"],
+th[data-column="lastPostAt"], td[data-column="lastPostAt"] {
+    width: 120px;
+}
+
+th[data-column="actions"], td[data-column="actions"] {
+    width: 100px;
+}
+
+/* Ensure all cells handle overflow consistently */
+td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+th {
+    background-color: var(--hover-background);
+    font-weight: 600;
+}
+
+/* Sortable Column Styles */
+th.sortable {
+    cursor: pointer;
+    position: relative;
+    padding-right: 25px;
+    user-select: none;
+    transition: background-color var(--transition-speed);
+}
+
+th.sortable:hover {
+    background-color: var(--hover-background);
+}
+
+/* Sort indicators */
+th.sortable::after {
+    content: '⇅';
+    position: absolute;
+    right: 8px;
+    opacity: 0.5;
+    font-size: 0.8em;
+    transition: opacity var(--transition-speed), color var(--transition-speed);
+}
+
+/* Active sort states */
+th.sortable.asc::after {
+    content: '↑';
+    opacity: 1;
+    color: var(--primary-color);
+}
+
+th.sortable.desc::after {
+    content: '↓';
+    opacity: 1;
+    color: var(--primary-color);
+}
+
+tr:hover {
+    background-color: var(--hover-background);
+}

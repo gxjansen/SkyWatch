@@ -1,0 +1,31 @@
+/* Theme Variables */
+:root {
+    /* Colors */
+    --primary-color: #3291ff;
+    --secondary-color: #999;
+    --background-color: #1a1a1a;
+    --card-background: #2d2d2d;
+    --border-color: #404040;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --danger-color: #ff4d4d;
+    --danger-hover: #ff3333;
+    --success-color: #2ecc71;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --hover-background: #363636;
+    --link-color: #3291ff;
+    --link-hover: #5ba9ff;
+    --loading-background: rgba(255, 255, 255, 0.05);
+    --loading-foreground: rgba(255, 255, 255, 0.1);
+    --title-static-color: #ffffff;
+    --title-dynamic-color: var(--primary-color);
+    
+    /* Spacing */
+    --border-radius: 8px;
+    --transition-speed: 0.2s;
+    --container-padding: 20px;
+    --card-padding: 24px;
+    --gap-large: 24px;
+    --gap-medium: 16px;
+    --gap-small: 8px;
+}

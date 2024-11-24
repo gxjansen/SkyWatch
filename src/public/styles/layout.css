@@ -1,0 +1,106 @@
+/* Modern Container Layout */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    gap: var(--gap-large);
+    grid-template-columns: 1fr;
+    width: 100%;
+}
+
+/* Card Styling */
+.card {
+    background: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    padding: var(--card-padding);
+    transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+    border: 1px solid var(--border-color);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px var(--shadow-color);
+}
+
+/* Section Headers */
+.section-header {
+    background-color: var(--card-background);
+    padding: var(--gap-medium);
+    margin-bottom: 0;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+    transition: background-color var(--transition-speed);
+    user-select: none;
+    position: relative;
+    z-index: 1;
+    color: var(--text-primary);
+}
+
+.section-header:hover {
+    background-color: var(--hover-background);
+}
+
+.section-header::after {
+    content: '▼';
+    font-size: 0.8em;
+    transition: transform var(--transition-speed);
+}
+
+.section-header.expanded::after {
+    transform: rotate(180deg);
+}
+
+/* Section Content */
+.section-content {
+    display: none;
+    padding: var(--card-padding);
+    border: 1px solid var(--border-color);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    background: var(--card-background);
+    margin-top: -1px;
+    position: relative;
+    z-index: 0;
+}
+
+.section-content.expanded {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Controls Layout */
+.column-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--gap-medium);
+}
+
+/* Progress Bar */
+.progress-container {
+    margin: var(--gap-large) 0;
+    padding: var(--gap-large);
+    background-color: var(--card-background);
+}
+
+.progress-bar {
+    height: 8px;
+    background-color: var(--hover-background);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background-color: var(--primary-color);
+    transition: width 0.3s ease-in-out;
+}
+
+.progress-text {
+    color: var(--text-secondary);
+    margin-top: var(--gap-small);
+    font-size: 0.9rem;
+}
