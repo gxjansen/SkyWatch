@@ -59,6 +59,36 @@
     }
 }
 
+/* Dynamic Update Notification */
+.dynamic-update-notification {
+    background-color: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--gap-medium);
+    margin-bottom: var(--gap-medium);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-small);
+}
+
+.dynamic-update-notification::before {
+    content: 'i';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--text-secondary);
+    border-radius: 50%;
+    font-style: italic;
+    font-family: serif;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+/* Rest of the existing CSS remains unchanged */
 .loading {
     position: relative;
     background: var(--card-background);
@@ -585,6 +615,17 @@ button[type="submit"]:hover {
     .loading-text::after {
         width: 10px;
         height: 10px;
+    }
+
+    .dynamic-update-notification {
+        font-size: 0.8rem;
+        padding: var(--gap-small);
+    }
+
+    .dynamic-update-notification::before {
+        width: 16px;
+        height: 16px;
+        font-size: 0.8rem;
     }
 }
 
