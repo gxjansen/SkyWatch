@@ -2,7 +2,6 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // Get references to key DOM elements
-  const followersTable = document.querySelector('.table-container table');
   const importProgressContainer = document.getElementById('import-progress-container');
   const progressBarFill = document.getElementById('progress-bar-fill');
   const progressText = document.getElementById('progress-text');
@@ -46,65 +45,37 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Sorting functionality
-  let currentSort = { column: null, direction: 'asc' };
+  function updateSortingUrl(column) {
+    // Get current URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSortBy = urlParams.get('sortBy');
+    const currentSortOrder = urlParams.get('sortOrder');
 
-  function sortTable(column) {
-    const tbody = followersTable.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    const headers = followersTable.querySelectorAll('th.sortable');
-
-    // Update sort direction
-    if (currentSort.column === column) {
-      currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    // Update sort parameters
+    if (currentSortBy === column) {
+      // Toggle sort order if clicking the same column
+      urlParams.set('sortOrder', currentSortOrder === 'asc' ? 'desc' : 'asc');
     } else {
-      currentSort.column = column;
-      currentSort.direction = 'asc';
+      // Set new column and default to ascending order
+      urlParams.set('sortBy', column);
+      urlParams.set('sortOrder', 'asc');
     }
 
-    // Update header classes
-    headers.forEach(header => {
-      header.classList.remove('asc', 'desc');
-      if (header.dataset.column === column) {
-        header.classList.add(currentSort.direction);
-      }
-    });
+    // Preserve the current page if it exists
+    if (!urlParams.has('page')) {
+      urlParams.set('page', '1');
+    }
 
-    // Sort rows
-    rows.sort((a, b) => {
-      const aCell = a.querySelector(`[data-column="${column}"]`);
-      const bCell = b.querySelector(`[data-column="${column}"]`);
-      let aValue = aCell.textContent.trim();
-      let bValue = bCell.textContent.trim();
-
-      // Handle different data types
-      if (column === 'joined' || column === 'lastPost') {
-        // Date comparison
-        aValue = aValue === 'N/A' ? -Infinity : new Date(aValue);
-        bValue = bValue === 'N/A' ? -Infinity : new Date(bValue);
-      } else if (['followers', 'following', 'posts'].includes(column)) {
-        // Number comparison
-        aValue = parseInt(aValue) || 0;
-        bValue = parseInt(bValue) || 0;
-      } else if (['postsPerDay', 'followerRatio'].includes(column)) {
-        // Float comparison
-        aValue = aValue === 'N/A' ? -Infinity : parseFloat(aValue);
-        bValue = bValue === 'N/A' ? -Infinity : parseFloat(bValue);
-      }
-
-      // Compare values
-      if (aValue < bValue) return currentSort.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return currentSort.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    // Reorder table rows
-    rows.forEach(row => tbody.appendChild(row));
+    // Redirect to the new URL
+    window.location.href = `/?${urlParams.toString()}`;
   }
 
   // Add click handlers to sortable columns
-  followersTable.querySelectorAll('th.sortable').forEach(header => {
+  const sortableHeaders = document.querySelectorAll('th.sortable');
+  sortableHeaders.forEach(header => {
     header.addEventListener('click', () => {
-      sortTable(header.dataset.column);
+      const column = header.dataset.column;
+      updateSortingUrl(column);
     });
   });
 
@@ -138,25 +109,39 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Filter form submission
-  function applyFilters(event) {
+  window.applyFilters = function(event) {
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
-    const queryParams = new URLSearchParams();
+    const urlParams = new URLSearchParams(window.location.search);
 
-    // Add non-empty filter values to query params
+    // Preserve sort parameters if they exist
+    const sortBy = urlParams.get('sortBy');
+    const sortOrder = urlParams.get('sortOrder');
+
+    // Create new URL parameters
+    const newParams = new URLSearchParams();
+    
+    // Add non-empty filter values
     for (const [key, value] of formData.entries()) {
       if (value) {
-        queryParams.append(key, value.toString());
+        newParams.append(key, value.toString());
       }
     }
 
-    // Redirect with filter parameters
-    window.location.href = `/?${queryParams.toString()}`;
-  }
+    // Add back sort parameters if they exist
+    if (sortBy) newParams.set('sortBy', sortBy);
+    if (sortOrder) newParams.set('sortOrder', sortOrder);
+
+    // Reset to page 1 when applying filters
+    newParams.set('page', '1');
+
+    // Redirect with all parameters
+    window.location.href = `/?${newParams.toString()}`;
+  };
 
   // Unfollow functionality
-  function unfollowUser(did) {
+  window.unfollowUser = function(did) {
     if (!confirm('Are you sure you want to unfollow this user?')) {
       return;
     }
@@ -185,5 +170,5 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error:', error);
       alert('An error occurred while unfollowing');
     });
-  }
+  };
 });

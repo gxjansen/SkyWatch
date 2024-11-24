@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- Previous head section remains the same -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -22,6 +23,7 @@
 </head>
 <body>
     <div class="container">
+        <!-- Previous sections remain the same until the main table -->
         <!-- Header Section -->
         <div class="card header-card">
             <div class="logo-container">
@@ -44,14 +46,14 @@
                         <thead>
                             <tr>
                                 <th data-column="avatar">Avatar</th>
-                                <th data-column="name">Name</th>
+                                <th data-column="displayName">Name</th>
                                 <th data-column="handle">Handle</th>
-                                <th data-column="followers">Followers</th>
-                                <th data-column="following">Following</th>
-                                <th data-column="posts">Posts</th>
+                                <th data-column="followerCount">Followers</th>
+                                <th data-column="followingCount">Following</th>
+                                <th data-column="postCount">Posts</th>
                                 <th data-column="postsPerDay">Posts/Day</th>
                                 <th data-column="followerRatio">Follower Ratio</th>
-                                <th data-column="joined">Joined</th>
+                                <th data-column="joinedAt">Joined</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -61,7 +63,7 @@
                                         <img src="<%= mainUser.avatar %>" alt="Your avatar" class="avatar">
                                     <% } %>
                                 </td>
-                                <td data-column="name">
+                                <td data-column="displayName">
                                     <%= mainUser.displayName || mainUser.handle %>
                                 </td>
                                 <td data-column="handle">
@@ -69,12 +71,12 @@
                                         <%= mainUser.handle %>
                                     </a>
                                 </td>
-                                <td data-column="followers"><%= mainUser.followerCount %></td>
-                                <td data-column="following"><%= mainUser.followingCount %></td>
-                                <td data-column="posts"><%= mainUser.postCount %></td>
+                                <td data-column="followerCount"><%= mainUser.followerCount %></td>
+                                <td data-column="followingCount"><%= mainUser.followingCount %></td>
+                                <td data-column="postCount"><%= mainUser.postCount %></td>
                                 <td data-column="postsPerDay"><%= mainUser.postsPerDay.toFixed(1) %></td>
                                 <td data-column="followerRatio"><%= mainUser.followerRatio.toFixed(1) %></td>
-                                <td data-column="joined"><%= new Date(mainUser.joinedAt).toISOString().split('T')[0] %></td>
+                                <td data-column="joinedAt"><%= new Date(mainUser.joinedAt).toISOString().split('T')[0] %></td>
                             </tr>
                         </tbody>
                     </table>
@@ -95,15 +97,15 @@
             <div class="section-content" id="columnControlsContent">
                 <div class="column-controls">
                     <label><input type="checkbox" class="column-toggle" id="col-avatar" checked> Avatar</label>
-                    <label><input type="checkbox" class="column-toggle" id="col-name" checked> Name</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-displayName" checked> Name</label>
                     <label><input type="checkbox" class="column-toggle" id="col-handle" checked> Handle</label>
-                    <label><input type="checkbox" class="column-toggle" id="col-followers" checked> Followers</label>
-                    <label><input type="checkbox" class="column-toggle" id="col-following" checked> Following</label>
-                    <label><input type="checkbox" class="column-toggle" id="col-posts" checked> Posts</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-followerCount" checked> Followers</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-followingCount" checked> Following</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-postCount" checked> Posts</label>
                     <label><input type="checkbox" class="column-toggle" id="col-postsPerDay" checked> Posts/Day</label>
                     <label><input type="checkbox" class="column-toggle" id="col-followerRatio" checked> Follower Ratio</label>
-                    <label><input type="checkbox" class="column-toggle" id="col-joined" checked> Joined</label>
-                    <label><input type="checkbox" class="column-toggle" id="col-lastPost" checked> Last Post</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-joinedAt" checked> Joined</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-lastPostAt" checked> Last Post</label>
                     <label><input type="checkbox" class="column-toggle" id="col-actions" checked> Actions</label>
                 </div>
             </div>
@@ -166,15 +168,15 @@
                     <thead>
                         <tr>
                             <th data-column="avatar">Avatar</th>
-                            <th class="sortable" data-column="name">Name</th>
-                            <th class="sortable" data-column="handle">Handle</th>
-                            <th class="sortable" data-column="followers">Followers</th>
-                            <th class="sortable" data-column="following">Following</th>
-                            <th class="sortable" data-column="posts">Posts</th>
-                            <th class="sortable" data-column="postsPerDay">Posts/Day</th>
-                            <th class="sortable" data-column="followerRatio">Follower Ratio</th>
-                            <th class="sortable" data-column="joined">Joined</th>
-                            <th class="sortable" data-column="lastPost">Last Post</th>
+                            <th class="sortable <%= sortBy === 'displayName' ? sortOrder : '' %>" data-column="displayName">Name</th>
+                            <th class="sortable <%= sortBy === 'handle' ? sortOrder : '' %>" data-column="handle">Handle</th>
+                            <th class="sortable <%= sortBy === 'followerCount' ? sortOrder : '' %>" data-column="followerCount">Followers</th>
+                            <th class="sortable <%= sortBy === 'followingCount' ? sortOrder : '' %>" data-column="followingCount">Following</th>
+                            <th class="sortable <%= sortBy === 'postCount' ? sortOrder : '' %>" data-column="postCount">Posts</th>
+                            <th class="sortable <%= sortBy === 'postsPerDay' ? sortOrder : '' %>" data-column="postsPerDay">Posts/Day</th>
+                            <th class="sortable <%= sortBy === 'followerRatio' ? sortOrder : '' %>" data-column="followerRatio">Follower Ratio</th>
+                            <th class="sortable <%= sortBy === 'joinedAt' ? sortOrder : '' %>" data-column="joinedAt">Joined</th>
+                            <th class="sortable <%= sortBy === 'lastPostAt' ? sortOrder : '' %>" data-column="lastPostAt">Last Post</th>
                             <th data-column="actions">Actions</th>
                         </tr>
                     </thead>
@@ -186,7 +188,7 @@
                                         <img src="<%= follower.avatar %>" alt="<%= follower.handle %>'s avatar" class="avatar">
                                     <% } %>
                                 </td>
-                                <td data-column="name">
+                                <td data-column="displayName">
                                     <%= follower.displayName || follower.handle %>
                                 </td>
                                 <td data-column="handle">
@@ -194,13 +196,13 @@
                                         <%= follower.handle %>
                                     </a>
                                 </td>
-                                <td data-column="followers"><%= follower.followerCount %></td>
-                                <td data-column="following"><%= follower.followingCount %></td>
-                                <td data-column="posts"><%= follower.postCount %></td>
+                                <td data-column="followerCount"><%= follower.followerCount %></td>
+                                <td data-column="followingCount"><%= follower.followingCount %></td>
+                                <td data-column="postCount"><%= follower.postCount %></td>
                                 <td data-column="postsPerDay"><%= follower.postsPerDay.toFixed(1) %></td>
                                 <td data-column="followerRatio"><%= follower.followerRatio.toFixed(1) %></td>
-                                <td data-column="joined"><%= follower.joinedAt ? follower.joinedAt.toISOString().split('T')[0] : 'N/A' %></td>
-                                <td data-column="lastPost"><%= follower.lastPostAt ? follower.lastPostAt.toISOString().split('T')[0] : 'N/A' %></td>
+                                <td data-column="joinedAt"><%= follower.joinedAt ? follower.joinedAt.toISOString().split('T')[0] : 'N/A' %></td>
+                                <td data-column="lastPostAt"><%= follower.lastPostAt ? follower.lastPostAt.toISOString().split('T')[0] : 'N/A' %></td>
                                 <td data-column="actions">
                                     <button onclick="unfollowUser('<%= follower.did %>')">Unfollow</button>
                                 </td>
@@ -212,8 +214,22 @@
 
             <!-- Pagination -->
             <div class="pagination">
+                <% 
+                    // Create URL params for pagination links
+                    const urlParams = new URLSearchParams();
+                    if (sortBy) urlParams.set('sortBy', sortBy);
+                    if (sortOrder) urlParams.set('sortOrder', sortOrder);
+                    // Add filter params
+                    for (const [key, value] of Object.entries(filters)) {
+                        if (value) urlParams.set(key, value);
+                    }
+                %>
                 <% for(let i = 1; i <= totalPages; i++) { %>
-                    <a href="?page=<%= i %>" class="<%= currentPage === i ? 'current' : '' %>"><%= i %></a>
+                    <% 
+                        urlParams.set('page', i);
+                        const pageUrl = `/?${urlParams.toString()}`;
+                    %>
+                    <a href="<%= pageUrl %>" class="<%= currentPage === i ? 'current' : '' %>"><%= i %></a>
                 <% } %>
             </div>
         </div>

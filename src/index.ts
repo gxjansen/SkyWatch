@@ -2,6 +2,7 @@ import { BlueSkyService } from './services/BlueSkyService';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { Follower } from './models/Follower';
+import { startServer } from './server';
 
 // Enable more verbose logging
 mongoose.set('debug', true);
@@ -59,6 +60,10 @@ async function main() {
     } catch (countError) {
       console.error('❌ Error counting or fetching followers:', countError);
     }
+
+    // Start the web server
+    startServer();
+    
   } catch (connectionError) {
     console.error('❌ MongoDB Connection Error:', connectionError);
     
@@ -78,9 +83,6 @@ async function main() {
     }
     
     process.exit(1);
-  } finally {
-    // Ensure mongoose connection is closed
-    await mongoose.connection.close();
   }
 }
 

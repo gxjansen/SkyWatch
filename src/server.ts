@@ -97,6 +97,8 @@ interface QueryParams {
   maxJoined?: string;
   minLastPost?: string;
   maxLastPost?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 // Update the MainUser interface to include displayName
@@ -186,6 +188,8 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
   try {
     const page = parseInt(req.query.page || '1');
     const skip = (page - 1) * FOLLOWERS_PER_PAGE;
+    const sortBy = req.query.sortBy || 'followedAt';
+    const sortOrder = req.query.sortOrder || 'desc';
 
     // Get initial profile data
     const mainUser = await getUserProfileData(blueSkyService);
@@ -270,12 +274,17 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       };
     }
 
+    // Create sort object for MongoDB
+    const sortObject: { [key: string]: 1 | -1 } = {
+      [sortBy]: sortOrder === 'asc' ? 1 : -1
+    };
+
     // Fetch data from database
     const totalFollowers = await Follower.countDocuments(filters);
     const totalPages = Math.ceil(totalFollowers / FOLLOWERS_PER_PAGE);
 
     const followers = await Follower.find(filters)
-      .sort({ followedAt: -1 })
+      .sort(sortObject)
       .skip(skip)
       .limit(FOLLOWERS_PER_PAGE);
 
@@ -312,7 +321,9 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       userHandle: mainUser.handle,
       stats: aggregateStats[0] || {},
       filters: req.query,
-      mainUser
+      mainUser,
+      sortBy,
+      sortOrder
     });
   } catch (error) {
     next(error);
