@@ -8,6 +8,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressText = document.getElementById('progress-text');
   const importedCountEl = document.getElementById('imported-count');
 
+  // Section toggle functionality
+  const sectionHeaders = document.querySelectorAll('.section-header');
+  
+  sectionHeaders.forEach(header => {
+    header.addEventListener('click', function() {
+      // Find the corresponding content section
+      const contentSection = this.nextElementSibling;
+      
+      // Toggle the visibility of the content section
+      if (contentSection.style.display === 'none' || contentSection.style.display === '') {
+        contentSection.style.display = 'block';
+      } else {
+        contentSection.style.display = 'none';
+      }
+    });
+  });
+
   // Column Toggle Functionality
   const columnToggles = document.querySelectorAll('.column-toggle');
   
