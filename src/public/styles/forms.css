@@ -13,25 +13,81 @@
 
 .filter-group label {
     color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
 }
 
 .filter-group input {
-    padding: 10px;
+    padding: 12px;
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
     width: 100%;
     box-sizing: border-box;
-    background-color: var(--card-background);
+    background-color: var(--table-header-bg);
     color: var(--text-primary);
+    font-size: 0.95rem;
 }
 
 .filter-group input:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(50, 145, 255, 0.2);
+    box-shadow: 0 0 0 2px rgba(0, 133, 255, 0.15);
+}
+
+.filter-group input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+/* Column Controls */
+.column-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--gap-medium);
 }
 
 .column-controls label {
     color: var(--text-primary);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-small);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-speed);
+}
+
+.column-controls label:hover {
+    background-color: var(--hover-background);
+}
+
+.column-controls input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: var(--card-background);
+    cursor: pointer;
+    position: relative;
+    transition: all var(--transition-speed);
+}
+
+.column-controls input[type="checkbox"]:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.column-controls input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    color: white;
+    font-size: 12px;
+    left: 2px;
+    top: -1px;
 }

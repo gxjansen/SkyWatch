@@ -23,7 +23,7 @@ table {
 th, td {
     padding: var(--gap-medium);
     text-align: left;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--table-border);
     color: var(--text-primary);
 }
 
@@ -71,8 +71,12 @@ td {
 }
 
 th {
-    background-color: var(--hover-background);
-    font-weight: 600;
+    background-color: var(--table-header-bg);
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* Sortable Column Styles */
@@ -86,6 +90,7 @@ th.sortable {
 
 th.sortable:hover {
     background-color: var(--hover-background);
+    color: var(--text-primary);
 }
 
 /* Sort indicators */
@@ -112,5 +117,5 @@ th.sortable.desc::after {
 }
 
 tr:hover {
-    background-color: var(--hover-background);
+    background-color: var(--table-row-hover);
 }

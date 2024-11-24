@@ -1,24 +1,29 @@
 /* Theme Variables */
 :root {
-    /* Colors */
-    --primary-color: #3291ff;
-    --secondary-color: #999;
-    --background-color: #1a1a1a;
-    --card-background: #2d2d2d;
-    --border-color: #404040;
-    --shadow-color: rgba(0, 0, 0, 0.3);
-    --danger-color: #ff4d4d;
-    --danger-hover: #ff3333;
-    --success-color: #2ecc71;
-    --text-primary: #ffffff;
-    --text-secondary: #b3b3b3;
-    --hover-background: #363636;
-    --link-color: #3291ff;
-    --link-hover: #5ba9ff;
-    --loading-background: rgba(255, 255, 255, 0.05);
-    --loading-foreground: rgba(255, 255, 255, 0.1);
+    /* Colors - aligned with Bluesky's color scheme */
+    --primary-color: #0085ff;      /* Bluesky's signature blue */
+    --secondary-color: #8e8e98;    /* Bluesky's secondary text */
+    --background-color: #000000;   /* Bluesky's dark mode background */
+    --card-background: #1a1a1f;    /* Slightly lighter for better contrast */
+    --border-color: #2f2f35;       /* More subtle border color */
+    --shadow-color: rgba(0, 0, 0, 0.2);
+    --danger-color: #ff4141;       /* Bluesky's error/danger red */
+    --danger-hover: #ff2929;
+    --success-color: #00ca65;      /* Bluesky's success green */
+    --text-primary: #f5f5f5;       /* Slightly softer white for better readability */
+    --text-secondary: #8e8e98;     /* Bluesky's secondary text */
+    --hover-background: #2a2a30;   /* Refined hover state */
+    --link-color: #0085ff;         /* Bluesky's link blue */
+    --link-hover: #339dff;         /* Slightly lighter blue for hover */
+    --loading-background: rgba(255, 255, 255, 0.03);
+    --loading-foreground: rgba(255, 255, 255, 0.08);
     --title-static-color: #ffffff;
     --title-dynamic-color: var(--primary-color);
+    
+    /* Table specific colors */
+    --table-header-bg: #1f1f24;    /* Slightly darker than card background */
+    --table-row-hover: #2a2a30;    /* Subtle row hover effect */
+    --table-border: #2f2f35;       /* Subtle table borders */
     
     /* Spacing */
     --border-radius: 8px;

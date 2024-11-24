@@ -9,6 +9,7 @@ button {
     font-weight: 500;
     transition: all var(--transition-speed);
     white-space: nowrap;
+    font-size: 0.9rem;
 }
 
 button:hover {
@@ -55,6 +56,7 @@ button[type="submit"]:hover {
     min-width: 24px;
     text-align: center;
     background-color: var(--card-background);
+    font-size: 0.9rem;
 }
 
 .pagination a:hover {
