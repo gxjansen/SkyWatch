@@ -52,7 +52,9 @@
                                 <th data-column="handle">Handle</th>
                                 <th data-column="followerCount">Followers</th>
                                 <th data-column="followingCount">Following</th>
-                                <th data-column="postCount">Posts</th>
+                                <th data-column="postCount">
+                                    <div class="tooltip" data-tooltip="Excludes re-posts">Posts</div>
+                                </th>
                                 <th data-column="postsPerDay">Posts/Day</th>
                                 <th data-column="followerRatio">Follower Ratio</th>
                                 <th data-column="joinedAt">Joined</th>
@@ -160,6 +162,8 @@
 
         <!-- Data Table Section -->
         <div class="card">
+            <h2>The accounts you follow</h2>
+            
             <!-- Added notification -->
             <div class="dynamic-update-notification">
                 Values will dynamically update based on your filters
@@ -174,7 +178,9 @@
                             <th class="sortable <%= sortBy === 'handle' ? sortOrder : '' %>" data-column="handle">Handle</th>
                             <th class="sortable <%= sortBy === 'followerCount' ? sortOrder : '' %>" data-column="followerCount">Followers</th>
                             <th class="sortable <%= sortBy === 'followingCount' ? sortOrder : '' %>" data-column="followingCount">Following</th>
-                            <th class="sortable <%= sortBy === 'postCount' ? sortOrder : '' %>" data-column="postCount">Posts</th>
+                            <th class="sortable <%= sortBy === 'postCount' ? sortOrder : '' %>" data-column="postCount">
+                                <div class="tooltip" data-tooltip="Excludes re-posts">Posts</div>
+                            </th>
                             <th class="sortable <%= sortBy === 'postsPerDay' ? sortOrder : '' %>" data-column="postsPerDay">Posts/Day</th>
                             <th class="sortable <%= sortBy === 'followerRatio' ? sortOrder : '' %>" data-column="followerRatio">Follower Ratio</th>
                             <th class="sortable <%= sortBy === 'joinedAt' ? sortOrder : '' %>" data-column="joinedAt">Joined</th>

@@ -53,6 +53,8 @@
 
 .main-user-stats .table-container {
     margin: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .main-user-stats table {
@@ -66,6 +68,15 @@
     font-size: 0.9rem;
     padding: var(--gap-small) var(--gap-medium);
     color: var(--text-primary);
+    position: relative;
+    z-index: 2;
+}
+
+.main-user-stats th .tooltip {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    width: 100%;
 }
 
 .main-user-stats td {

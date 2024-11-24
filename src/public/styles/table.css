@@ -7,6 +7,18 @@
     border-radius: var(--border-radius);
     /* Prevent table from causing horizontal scroll on parent */
     min-width: 0;
+    /* Create stacking context for tooltips */
+    position: relative;
+    z-index: 1;
+}
+
+/* Table Title */
+.card h2 {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    margin: var(--gap-medium) 0;
+    font-weight: 600;
+    padding: 0 var(--gap-medium);
 }
 
 /* Table Styling */
@@ -77,6 +89,16 @@ th {
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Ensure tooltip container in header has proper positioning */
+th .tooltip {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    width: 100%;
 }
 
 /* Sortable Column Styles */
