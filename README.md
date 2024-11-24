@@ -25,7 +25,7 @@ Control which information you want to see with flexible column controls:
 ### Detailed User Table
 View comprehensive information about your followers in an organized table:
 
-<img src="src/public/images/table.png" alt="User Table Example" width="100%">
+<img src="src/public/images/table2.png" alt="User Table Example" width="100%">
 
 Additional features include:
 - Track and analyze your BlueSky followers
