@@ -31,9 +31,12 @@
                     <p class="subtitle"><%= subtitle %></p>
                 </div>
             </div>
-            <div id="imported-count">Total Imported Users: <%= totalFollowers %></div>
+            <div id="imported-count">
+                Total Imported Users: <%= totalFollowers %> 
+                (<%= Math.floor((totalFollowers / mainUser.followingCount) * 100) %>%)
+            </div>
 
-            <!-- Main User Stats -->
+            <!-- Rest of the file remains unchanged -->
             <div class="main-user-stats">
                 <h2>Your Account Stats</h2>
                 <div class="table-container">
