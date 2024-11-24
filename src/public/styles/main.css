@@ -17,6 +17,8 @@
     --link-hover: #5ba9ff;
     --loading-background: rgba(255, 255, 255, 0.05);
     --loading-foreground: rgba(255, 255, 255, 0.1);
+    --title-static-color: #ffffff;
+    --title-dynamic-color: var(--primary-color);
     
     /* Spacing */
     --border-radius: 8px;
@@ -289,11 +291,24 @@ body {
 
 /* Header Styling */
 h1 {
-    color: var(--text-primary);
     margin: 0;
     font-size: 2rem;
-    font-weight: 600;
     letter-spacing: -0.5px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.title-static {
+    color: var(--title-static-color);
+    font-weight: 600;
+}
+
+.title-dynamic {
+    color: var(--title-dynamic-color);
+    font-weight: 400;
+    font-size: 0.9em;
 }
 
 /* Section Headers */
@@ -636,6 +651,10 @@ button[type="submit"]:hover {
 
     h1 {
         font-size: 1.5rem;
+    }
+
+    .title-dynamic {
+        font-size: 0.85em;
     }
 
     .logo {

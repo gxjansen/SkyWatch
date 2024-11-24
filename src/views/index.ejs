@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- Previous head section remains the same -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title><%= title %> - <%= subtitle %></title>
+    <title><%= title %> for <%= mainUser.displayName || mainUser.handle %></title>
     
     <!-- Meta tags -->
     <meta name="description" content="<%= subtitle %> for <%= userHandle %>">
@@ -23,16 +22,19 @@
 </head>
 <body>
     <div class="container">
-        <!-- Previous sections remain the same until the main table -->
         <!-- Header Section -->
         <div class="card header-card">
             <div class="logo-container">
                 <img src="/images/logo.svg" alt="<%= title %> Logo" class="logo">
                 <div class="title-container">
-                    <h1><%= title %></h1>
+                    <h1>
+                        <span class="title-static">SkyWatch</span>
+                        <span class="title-dynamic">for <%= mainUser.displayName || mainUser.handle %></span>
+                    </h1>
                     <p class="subtitle"><%= subtitle %></p>
                 </div>
             </div>
+            <!-- Rest of the file remains exactly the same -->
             <div id="imported-count">
                 Total Imported Users: <%= totalFollowers %> 
                 (<%= Math.floor((totalFollowers / mainUser.followingCount) * 100) %>%)
