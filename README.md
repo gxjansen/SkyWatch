@@ -41,6 +41,48 @@ Additional features include:
 - MongoDB
 - BlueSky account
 
+### MongoDB Setup
+
+1. Install MongoDB Community Edition:
+   - **macOS** (using Homebrew):
+     ```bash
+     brew tap mongodb/brew
+     brew install mongodb-community
+     ```
+   - **Windows**:
+     - Download the MongoDB Community Server from the [official website](https://www.mongodb.com/try/download/community)
+     - Run the installer and follow the installation wizard
+     - Optionally install MongoDB Compass (the GUI tool) when prompted
+
+2. Start MongoDB service:
+   - **macOS**:
+     ```bash
+     brew services start mongodb-community
+     ```
+   - **Windows**:
+     - MongoDB should run automatically as a Windows Service
+     - If not, you can start it manually:
+       1. Open Services (Win + R, type 'services.msc')
+       2. Find "MongoDB Server"
+       3. Right-click and select "Start"
+
+3. Verify installation:
+   ```bash
+   # Connect to MongoDB shell
+   mongosh
+   
+   # If you see a '>' prompt, MongoDB is running correctly
+   # Type 'exit' to leave the shell
+   ```
+
+4. Database Configuration:
+   - The application will automatically create the required database ('bsky-follower-tracker')
+   - Default connection string in .env file should work out of the box:
+     ```
+     MONGODB_URI="mongodb://localhost:27017/bsky-follower-tracker"
+     ```
+   - No additional database setup or user creation is required for local development
+
 ## Setup
 
 1. Clone the repository:
