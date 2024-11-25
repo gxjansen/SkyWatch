@@ -12,6 +12,7 @@ export class BlueSkyService {
   private password: string;
   private authPromise: Promise<boolean> | null = null;
   private static MAX_AUTH_RETRIES = 3;
+  private authInProgress = false;
   
   // Callback for tracking imported followers
   onFollowerImported?: (follower: Partial<IFollower>) => void;
@@ -70,27 +71,16 @@ export class BlueSkyService {
    * @returns Promise resolving to boolean indicating authentication success
    */
   async authenticate(retryCount = 0): Promise<boolean> {
-    // If there's already an authentication in progress, wait for it
-    if (this.authPromise) {
-      console.log('[BlueSkyService] Authentication already in progress, waiting for completion...');
-      return this.authPromise;
+    // If authentication is already in progress, wait for it to complete
+    if (this.authInProgress) {
+      console.log('[BlueSkyService] Authentication already in progress, waiting...');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      return this.authenticate(retryCount);
     }
 
-    // Create new authentication promise
-    this.authPromise = this.performAuthentication(retryCount);
-
     try {
-      return await this.authPromise;
-    } finally {
-      this.authPromise = null;
-    }
-  }
+      this.authInProgress = true;
 
-  /**
-   * Internal method to perform authentication
-   */
-  private async performAuthentication(retryCount: number): Promise<boolean> {
-    try {
       // If already authenticated with a valid session, verify it
       if (this.agent.session?.did) {
         try {
@@ -138,6 +128,8 @@ export class BlueSkyService {
       
       console.error('[BlueSkyService] Authentication failed:', error);
       return false;
+    } finally {
+      this.authInProgress = false;
     }
   }
 
@@ -256,9 +248,6 @@ export class BlueSkyService {
       // Wait for rate limit
       await BlueSkyRateLimits.FOLLOWS.waitForNextSlot();
 
-      // Establish MongoDB connection
-      await mongoose.connect(process.env.MONGODB_URI || '');
-
       // Initialize variables for pagination
       let cursor: string | undefined;
       const storedFollowers: Partial<IFollower>[] = [];
@@ -346,10 +335,7 @@ export class BlueSkyService {
       return storedFollowers;
     } catch (error) {
       console.error('[BlueSkyService] Error fetching and storing followers:', error);
-      throw error; // Re-throw to ensure error is properly handled by caller
-    } finally {
-      // Ensure connection is closed
-      await mongoose.connection.close();
+      throw error;
     }
   }
 

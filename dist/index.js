@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const dotenv_1 = __importDefault(require("dotenv"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const Follower_1 = require("./models/Follower");
+const server_1 = require("./server");
 // Enable more verbose logging
 mongoose_1.default.set('debug', true);
 dotenv_1.default.config();
@@ -52,6 +53,8 @@ async function main() {
         catch (countError) {
             console.error('❌ Error counting or fetching followers:', countError);
         }
+        // Start the web server
+        (0, server_1.startServer)();
     }
     catch (connectionError) {
         console.error('❌ MongoDB Connection Error:', connectionError);
@@ -69,10 +72,6 @@ async function main() {
             }
         }
         process.exit(1);
-    }
-    finally {
-        // Ensure mongoose connection is closed
-        await mongoose_1.default.connection.close();
     }
 }
 main().catch(error => {

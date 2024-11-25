@@ -35,7 +35,18 @@ class ImportQueue {
     setSocketServer(io) {
         this.socketServer = io;
     }
-    initializeProgressBar(total) {
+    async getTotalFollowerCount() {
+        try {
+            // Get the authenticated user's profile to get total follower count
+            const profile = await this.blueSkyService.getCurrentUserProfile();
+            return profile.data.followsCount || 0;
+        }
+        catch (error) {
+            console.error('[ImportQueue] Error getting total follower count:', error);
+            return 0;
+        }
+    }
+    initializeProgressBar(total, current = 0) {
         // Move cursor to bottom of terminal and create space for progress bar
         process.stdout.write('\n'.repeat(2));
         process.stdout.write('\x1B[1A'); // Move cursor up one line
@@ -48,10 +59,10 @@ class ImportQueue {
             clearOnComplete: true,
             stream: process.stdout, // Explicitly set output stream
         });
-        // Start the progress bar
-        this.progressBar.start(total, 0);
+        // Start the progress bar with current progress
+        this.progressBar.start(total, current);
     }
-    async startImport() {
+    async startImport(options = {}) {
         // Prevent multiple simultaneous imports
         if (this.isImporting) {
             console.log('[ImportQueue] Import already in progress');
@@ -67,14 +78,17 @@ class ImportQueue {
                 this.isImporting = false;
                 throw new Error('Authentication failed');
             }
-            // Clear existing followers
-            await Follower_1.Follower.deleteMany({});
-            console.log('[ImportQueue] Existing followers cleared');
-            // Estimate total followers to import
-            const initialFollowersResponse = await this.blueSkyService.getFollowers();
-            this.totalFollowersToImport = initialFollowersResponse.data.follows.length;
-            // Initialize progress bar
-            this.initializeProgressBar(this.totalFollowersToImport);
+            // Clear existing followers if requested
+            if (options.clearExisting) {
+                await Follower_1.Follower.deleteMany({});
+                console.log('[ImportQueue] Existing followers cleared');
+            }
+            // Get total follower count for accurate progress tracking
+            this.totalFollowersToImport = await this.getTotalFollowerCount();
+            const existingCount = await Follower_1.Follower.countDocuments();
+            console.log(`[ImportQueue] Total followers to import: ${this.totalFollowersToImport} (${existingCount} existing)`);
+            // Initialize progress bar with current progress
+            this.initializeProgressBar(this.totalFollowersToImport, existingCount);
             // Start the import process
             await this.importFollowersBatched();
         }
@@ -109,9 +123,17 @@ class ImportQueue {
             // Process each follower
             for (const follower of followersResponse.data.follows) {
                 try {
+                    // Check if we already have this follower
+                    const existingFollower = await Follower_1.Follower.findOne({ did: follower.did });
+                    if (existingFollower) {
+                        console.log(`[ImportQueue] Skipping existing follower: ${follower.handle}`);
+                        continue;
+                    }
                     // Fetch additional profile information
                     const profileResponse = await this.blueSkyService.getProfile(follower.did);
                     const profile = profileResponse.data;
+                    // Get latest post timestamp
+                    const latestPostTimestamp = await this.blueSkyService.getLatestPostTimestamp(follower.did);
                     const followerData = {
                         did: follower.did,
                         handle: follower.handle,
@@ -121,31 +143,31 @@ class ImportQueue {
                         followerCount: profile.followersCount || 0,
                         followingCount: profile.followsCount || 0,
                         postCount: profile.postsCount || 0,
-                        joinedAt: profile.createdAt ? new Date(profile.createdAt) : undefined
+                        joinedAt: profile.createdAt ? new Date(profile.createdAt) : undefined,
+                        lastPostAt: latestPostTimestamp
                     };
-                    // Upsert follower
-                    const savedFollower = await Follower_1.Follower.findOneAndUpdate({ did: follower.did }, followerData, { upsert: true, new: true });
-                    // Calculate follower ratio
+                    // Save new follower
+                    const savedFollower = await Follower_1.Follower.create(followerData);
+                    // Calculate follower ratio and posts per day
                     savedFollower.calculateFollowerRatio();
+                    savedFollower.calculatePostsPerDay();
                     await savedFollower.save();
-                    // Update progress bar
-                    if (this.progressBar) {
-                        const totalFollowers = await Follower_1.Follower.countDocuments();
-                        this.progressBar.update(totalFollowers);
-                    }
+                    console.log(`[ImportQueue] Imported follower: ${follower.handle}`);
+                }
+                catch (profileError) {
+                    console.error(`[ImportQueue] Error processing follower ${follower.handle}:`, profileError);
+                }
+                // Update progress bar
+                if (this.progressBar) {
+                    const totalFollowers = await Follower_1.Follower.countDocuments();
+                    this.progressBar.update(totalFollowers);
                     // Emit progress if socket is available
                     if (this.socketServer) {
-                        const totalFollowers = await Follower_1.Follower.countDocuments();
                         this.socketServer.emit('followerImportProgress', {
                             total: totalFollowers,
                             complete: false
                         });
                     }
-                    // Optional: Add a small delay to respect rate limits
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-                catch (profileError) {
-                    console.error(`[ImportQueue] Error processing follower ${follower.handle}:`, profileError);
                 }
             }
             // Check if there are more followers to import

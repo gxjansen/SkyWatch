@@ -30,6 +30,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Set view engine and views directory
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -47,7 +48,15 @@ const importQueue = new ImportQueue(blueSkyService);
 importQueue.setSocketServer(io);
 
 mongoose.connect(process.env.MONGODB_URI || '')
-  .then(() => console.log('MongoDB connected for web server'))
+  .then(() => {
+    console.log('MongoDB connected for web server');
+    // Start import if force import flag is set
+    if (shouldForceImport || process.env.AUTO_IMPORT === 'true') {
+      console.log('Starting follower import process...');
+      importQueue.startImport({ clearExisting: shouldForceImport })
+        .catch(err => console.error('Import process failed:', err));
+    }
+  })
   .catch(err => console.error('MongoDB connection error:', err));
 
 interface FilterQuery {
@@ -205,16 +214,19 @@ app.post('/unfollow', async (req: Request, res: Response) => {
   }
 });
 
-// Main page route
+// Main page route with error handling
 app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: NextFunction) => {
   try {
+    console.log('Handling main page request...');
     const page = parseInt(req.query.page || '1');
     const skip = (page - 1) * FOLLOWERS_PER_PAGE;
     const sortBy = req.query.sortBy || 'followedAt';
     const sortOrder = req.query.sortOrder || 'desc';
 
+    console.log('Getting initial profile data...');
     // Get initial profile data
     const mainUser = await getUserProfileData(blueSkyService);
+    console.log('Got profile data:', mainUser);
 
     // Filter parameters
     const filters: FilterQuery = {};
@@ -296,6 +308,7 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       };
     }
 
+    console.log('Fetching followers from database...');
     // Create sort object for MongoDB
     const sortObject: { [key: string]: 1 | -1 } = {
       [sortBy]: sortOrder === 'asc' ? 1 : -1
@@ -303,12 +316,14 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
 
     // Fetch data from database
     const totalFollowers = await Follower.countDocuments(filters);
+    console.log('Total followers:', totalFollowers);
     const totalPages = Math.ceil(totalFollowers / FOLLOWERS_PER_PAGE);
 
     const followers = await Follower.find(filters)
       .sort(sortObject)
       .skip(skip)
       .limit(FOLLOWERS_PER_PAGE);
+    console.log('Fetched followers:', followers.length);
 
     const aggregateStats = await Follower.aggregate([
       {
@@ -332,6 +347,7 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       }
     ]);
 
+    console.log('Rendering template...');
     res.render('index', { 
       followers,
       currentPage: page,
@@ -347,9 +363,17 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       sortBy,
       sortOrder
     });
+    console.log('Template rendered successfully');
   } catch (error) {
+    console.error('Error in main route:', error);
     next(error);
   }
+});
+
+// Error handling middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('Global error handler:', err);
+  res.status(500).send('Internal Server Error: ' + err.message);
 });
 
 // Add the startServer function

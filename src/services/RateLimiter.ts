@@ -1,3 +1,66 @@
+// BlueSky API Rate Limits (from https://docs.bsky.app/docs/advanced-guides/rate-limits)
+// - 5,000 requests per 5 minutes (16.7 req/sec)
+// - 50,000 requests per hour
+
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Time periods in milliseconds
+const TIME_PERIODS = {
+  FIVE_MINUTES: 5 * 60 * 1000,
+  ONE_HOUR: 60 * 60 * 1000,
+  ONE_DAY: 24 * 60 * 1000
+};
+
+// BlueSky's rate limits
+const BLUESKY_LIMITS = {
+  FIVE_MIN: 5000,   // 5,000 requests per 5 minutes
+  HOURLY: 50000     // 50,000 requests per hour
+};
+
+// Get rate limit percentages from environment variables (0.0 to 1.0)
+const USAGE_PERCENTAGE = {
+  AUTH: parseFloat(process.env.RATE_LIMIT_AUTH || '1.0'),
+  FOLLOWS: parseFloat(process.env.RATE_LIMIT_FOLLOWS || '1.0'),
+  UNFOLLOW: parseFloat(process.env.RATE_LIMIT_UNFOLLOW || '1.0'),
+  GENERAL: parseFloat(process.env.RATE_LIMIT_GENERAL || '1.0')
+};
+
+// Ensure all percentages are valid (between 0 and 1)
+Object.entries(USAGE_PERCENTAGE).forEach(([key, value]) => {
+  if (isNaN(value) || value < 0 || value > 1) {
+    console.warn(`Invalid rate limit percentage for ${key}, defaulting to 1.0`);
+    (USAGE_PERCENTAGE as any)[key] = 1.0;
+  }
+});
+
+// Rate limit configuration
+const RATE_LIMITS = {
+  // Authentication rate limit (conservative for login attempts)
+  AUTH: {
+    maxCalls: Math.floor(100 * USAGE_PERCENTAGE.AUTH),  // Max: No specific limit documented
+    periodMs: TIME_PERIODS.ONE_DAY                      // Period: 24 hours
+  },
+  
+  // API rate limits for follows/profile operations
+  FOLLOWS: {
+    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN * USAGE_PERCENTAGE.FOLLOWS),
+    periodMs: TIME_PERIODS.FIVE_MINUTES
+  },
+  
+  // API rate limits for unfollow operations
+  UNFOLLOW: {
+    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN * USAGE_PERCENTAGE.UNFOLLOW),
+    periodMs: TIME_PERIODS.FIVE_MINUTES
+  },
+  
+  // General API rate limit for other endpoints
+  GENERAL: {
+    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN * USAGE_PERCENTAGE.GENERAL),
+    periodMs: TIME_PERIODS.FIVE_MINUTES
+  }
+};
+
 interface RateLimitConfig {
   maxCalls: number;
   periodMs: number;
@@ -56,8 +119,7 @@ export class RateLimiter {
     );
 
     // Check if we've reached the maximum number of calls
-    // Use 90% of the limit to leave some buffer
-    if (this.calls.length >= Math.floor(this.config.maxCalls * 0.9)) {
+    if (this.calls.length >= this.config.maxCalls) {
       return false;
     }
 
@@ -79,7 +141,7 @@ export class RateLimiter {
     }
 
     // If we have too many recent calls, wait based on the oldest call
-    if (this.calls.length >= Math.floor(this.config.maxCalls * 0.9)) {
+    if (this.calls.length >= this.config.maxCalls) {
       const oldestCall = Math.min(...this.calls);
       const waitTime = (oldestCall + this.config.periodMs) - now;
       return Math.max(waitTime, this.backoffMs);
@@ -116,26 +178,8 @@ export class RateLimiter {
 
 // BlueSky-specific rate limit configuration
 export const BlueSkyRateLimits = {
-  // Authentication rate limit (100 requests per day)
-  AUTH: new RateLimiter({
-    maxCalls: 100,
-    periodMs: 24 * 60 * 60 * 1000 // 24 hours
-  }),
-  
-  // API rate limits (50 requests per 5 minutes)
-  FOLLOWS: new RateLimiter({
-    maxCalls: 50,
-    periodMs: 5 * 60 * 1000 // 5 minutes
-  }),
-  
-  UNFOLLOW: new RateLimiter({
-    maxCalls: 50,  // Use full limit since it's a separate endpoint
-    periodMs: 5 * 60 * 1000 // 5 minutes
-  }),
-  
-  // General API rate limit for other endpoints
-  GENERAL: new RateLimiter({
-    maxCalls: 50,
-    periodMs: 5 * 60 * 1000 // 5 minutes
-  })
+  AUTH: new RateLimiter(RATE_LIMITS.AUTH),
+  FOLLOWS: new RateLimiter(RATE_LIMITS.FOLLOWS),
+  UNFOLLOW: new RateLimiter(RATE_LIMITS.UNFOLLOW),
+  GENERAL: new RateLimiter(RATE_LIMITS.GENERAL)
 };

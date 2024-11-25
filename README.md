@@ -83,6 +83,24 @@ Additional features include:
      ```
    - No additional database setup or user creation is required for local development
 
+### Rate Limits
+
+SkyWatch respects BlueSky's API rate limits:
+- 5,000 requests per 5 minutes (16.7 req/sec)
+- 50,000 requests per hour
+
+For each of these, you can set a configurable percentage of the rate limit to use (0.0 to 1.0), whatever you feel is appropriate for your usage.
+
+For each follower import, we make 2 API calls:
+1. Fetch their profile information
+2. Get their latest post timestamp
+
+The import process automatically handles rate limiting by:
+- Tracking API usage
+- Respecting rate limit headers from BlueSky
+- Pausing when limits are reached
+- Automatically resuming when the rate limit window resets
+
 ## Setup
 
 1. Clone the repository:
@@ -111,6 +129,14 @@ Required environment variables:
 - `MONGODB_URI`: MongoDB connection string
 - `PORT`: Server port (default: 3000)
 - `AUTO_IMPORT`: Enable automatic follower import on startup (true/false)
+
+Optional rate limit configuration:
+- `RATE_LIMIT_AUTH`: Percentage of auth rate limit to use (0.0 to 1.0, default: 1.0)
+- `RATE_LIMIT_FOLLOWS`: Percentage of follows/profile rate limit to use (0.0 to 1.0, default: 1.0)
+- `RATE_LIMIT_UNFOLLOW`: Percentage of unfollow rate limit to use (0.0 to 1.0, default: 1.0)
+- `RATE_LIMIT_GENERAL`: Percentage of general API rate limit to use (0.0 to 1.0, default: 1.0)
+
+[Rest of the README content...]
 
 4. Build the project:
 ```bash

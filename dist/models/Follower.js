@@ -15,9 +15,14 @@ const FollowerSchema = new mongoose_1.default.Schema({
     followingCount: { type: Number, default: 0 },
     postCount: { type: Number, default: 0 },
     joinedAt: { type: Date },
+    lastPostAt: { type: Date },
     followerRatio: {
         type: Number,
-        default: 0 // Set a simple default value of 0
+        default: 0
+    },
+    postsPerDay: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true
@@ -32,10 +37,36 @@ FollowerSchema.methods.calculateFollowerRatio = function () {
         : 0;
     return this.followerRatio;
 };
-// Pre-save hook to calculate follower ratio
+// Method to calculate average posts per day
+FollowerSchema.methods.calculatePostsPerDay = function () {
+    if (!this.postCount) {
+        this.postsPerDay = 0;
+        return 0;
+    }
+    const today = new Date();
+    let startDate;
+    // If we have lastPostAt, use it as the end date instead of today
+    const endDate = this.lastPostAt || today;
+    // Use joinedAt as the start date if available, otherwise use a fallback date
+    if (this.joinedAt) {
+        startDate = this.joinedAt;
+    }
+    else {
+        // If no joinedAt date is available, use a reasonable fallback (e.g., 30 days ago)
+        startDate = new Date(endDate.getTime() - (30 * 24 * 60 * 60 * 1000));
+    }
+    // Calculate days between dates, ensuring at least 1 day
+    const daysSinceStart = Math.max(1, Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    this.postsPerDay = Number((this.postCount / daysSinceStart).toFixed(2));
+    return this.postsPerDay;
+};
+// Pre-save hook to calculate ratios
 FollowerSchema.pre('save', function (next) {
     if (this.isModified('followerCount') || this.isModified('followingCount')) {
         this.calculateFollowerRatio();
+    }
+    if (this.isModified('postCount') || this.isModified('joinedAt') || this.isModified('lastPostAt')) {
+        this.calculatePostsPerDay();
     }
     next();
 });
