@@ -27,9 +27,10 @@ table {
     border-collapse: separate;
     border-spacing: 0;
     background: var(--card-background);
-    /* Change from fixed min-width to fit-content */
+    /* Allow table to grow with content */
     min-width: fit-content;
-    table-layout: fixed;
+    /* Use auto layout for more flexible columns */
+    table-layout: auto;
 }
 
 th, td {
@@ -39,40 +40,54 @@ th, td {
     color: var(--text-primary);
 }
 
-/* Column width definitions */
+/* Column width definitions - using relative widths */
 th[data-column="avatar"], td[data-column="avatar"] {
-    width: 60px;
+    width: 40px;
+    min-width: 40px;
+    max-width: 60px;
 }
 
 th[data-column="displayName"], td[data-column="displayName"] {
-    width: 160px;
+    min-width: 160px;
+    max-width: 300px;
+    width: 15%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 th[data-column="handle"], td[data-column="handle"] {
-    width: 140px;
+    min-width: 140px;
+    max-width: 200px;
+    width: 12%;
 }
 
 th[data-column="followerCount"], td[data-column="followerCount"],
 th[data-column="followingCount"], td[data-column="followingCount"],
 th[data-column="postCount"], td[data-column="postCount"] {
-    width: 100px;
+    min-width: 80px;
+    max-width: 120px;
+    width: 8%;
 }
 
 th[data-column="postsPerDay"], td[data-column="postsPerDay"],
 th[data-column="followerRatio"], td[data-column="followerRatio"] {
-    width: 100px;
+    min-width: 80px;
+    max-width: 120px;
+    width: 8%;
 }
 
 th[data-column="joinedAt"], td[data-column="joinedAt"],
 th[data-column="lastPostAt"], td[data-column="lastPostAt"] {
-    width: 120px;
+    min-width: 120px;
+    max-width: 160px;
+    width: 10%;
 }
 
 th[data-column="actions"], td[data-column="actions"] {
-    width: 100px;
+    min-width: 80px;
+    max-width: 120px;
+    width: 8%;
 }
 
 /* Ensure all cells handle overflow consistently */
@@ -91,6 +106,8 @@ th {
     letter-spacing: 0.5px;
     position: relative;
     z-index: 2;
+    /* Prevent header text from wrapping */
+    white-space: nowrap;
 }
 
 /* Ensure tooltip container in header has proper positioning */
@@ -140,4 +157,16 @@ th.sortable.desc::after {
 
 tr:hover {
     background-color: var(--table-row-hover);
+}
+
+/* Responsive adjustments */
+@media screen and (min-width: 1600px) {
+    /* Increase column widths on larger screens */
+    th[data-column="displayName"], td[data-column="displayName"] {
+        max-width: 400px;
+    }
+    
+    th[data-column="handle"], td[data-column="handle"] {
+        max-width: 250px;
+    }
 }

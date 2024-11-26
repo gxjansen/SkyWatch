@@ -1,18 +1,70 @@
 /* Responsive Styles */
-@media (max-width: 1440px) {
-    /* Ensure container padding scales well on medium screens */
+
+/* Large screens */
+@media (min-width: 1800px) {
     .container {
+        max-width: 98vw;
         padding-left: var(--container-padding);
         padding-right: var(--container-padding);
     }
+
+    /* Increase column widths on larger screens */
+    td[data-column="displayName"] {
+        max-width: 400px;
+    }
+
+    td[data-column="handle"] {
+        max-width: 250px;
+    }
+
+    /* Adjust column controls for better space usage */
+    .column-controls {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
 }
 
+/* Medium-large screens */
+@media (min-width: 1441px) and (max-width: 1799px) {
+    .container {
+        max-width: 95vw;
+        padding-left: var(--container-padding);
+        padding-right: var(--container-padding);
+    }
+
+    td[data-column="displayName"] {
+        max-width: 300px;
+    }
+
+    td[data-column="handle"] {
+        max-width: 200px;
+    }
+}
+
+/* Medium screens */
+@media (max-width: 1440px) {
+    .container {
+        max-width: 90vw;
+        padding-left: var(--container-padding);
+        padding-right: var(--container-padding);
+    }
+
+    td[data-column="displayName"] {
+        max-width: 250px;
+    }
+
+    td[data-column="handle"] {
+        max-width: 180px;
+    }
+}
+
+/* Tablet and smaller screens */
 @media (max-width: 768px) {
     html {
         font-size: 14px;
     }
 
     .container {
+        max-width: 100%;
         padding-left: var(--gap-medium);
         padding-right: var(--gap-medium);
     }
