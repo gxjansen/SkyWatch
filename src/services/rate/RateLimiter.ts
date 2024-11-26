@@ -1,10 +1,3 @@
-// BlueSky API Rate Limits (from https://docs.bsky.app/docs/advanced-guides/rate-limits)
-// - 5,000 requests per 5 minutes (16.7 req/sec)
-// - 50,000 requests per hour
-
-import dotenv from 'dotenv';
-dotenv.config();
-
 // Time periods in milliseconds
 const TIME_PERIODS = {
   FIVE_MINUTES: 5 * 60 * 1000,
@@ -18,45 +11,29 @@ const BLUESKY_LIMITS = {
   HOURLY: 50000     // 50,000 requests per hour
 };
 
-// Get rate limit percentages from environment variables (0.0 to 1.0)
-const USAGE_PERCENTAGE = {
-  AUTH: parseFloat(process.env.RATE_LIMIT_AUTH || '1.0'),
-  FOLLOWS: parseFloat(process.env.RATE_LIMIT_FOLLOWS || '1.0'),
-  UNFOLLOW: parseFloat(process.env.RATE_LIMIT_UNFOLLOW || '1.0'),
-  GENERAL: parseFloat(process.env.RATE_LIMIT_GENERAL || '1.0')
-};
-
-// Ensure all percentages are valid (between 0 and 1)
-Object.entries(USAGE_PERCENTAGE).forEach(([key, value]) => {
-  if (isNaN(value) || value < 0 || value > 1) {
-    console.warn(`Invalid rate limit percentage for ${key}, defaulting to 1.0`);
-    (USAGE_PERCENTAGE as any)[key] = 1.0;
-  }
-});
-
 // Rate limit configuration
 const RATE_LIMITS = {
   // Authentication rate limit (conservative for login attempts)
   AUTH: {
-    maxCalls: Math.floor(100 * USAGE_PERCENTAGE.AUTH),  // Max: No specific limit documented
+    maxCalls: Math.floor(100),  // Max: No specific limit documented
     periodMs: TIME_PERIODS.ONE_DAY                      // Period: 24 hours
   },
   
   // API rate limits for follows/profile operations
   FOLLOWS: {
-    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN * USAGE_PERCENTAGE.FOLLOWS),
+    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN),
     periodMs: TIME_PERIODS.FIVE_MINUTES
   },
   
   // API rate limits for unfollow operations
   UNFOLLOW: {
-    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN * USAGE_PERCENTAGE.UNFOLLOW),
+    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN),
     periodMs: TIME_PERIODS.FIVE_MINUTES
   },
   
   // General API rate limit for other endpoints
   GENERAL: {
-    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN * USAGE_PERCENTAGE.GENERAL),
+    maxCalls: Math.floor(BLUESKY_LIMITS.FIVE_MIN),
     periodMs: TIME_PERIODS.FIVE_MINUTES
   }
 };

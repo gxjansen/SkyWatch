@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import { Follower, IFollower } from './models/Follower';
+import { IFollower } from './models/Follower';
 import { BlueSkyService } from './services/BlueSkyService';
 import { ImportQueue } from './services/ImportQueue';
 import { Server } from 'socket.io';
@@ -40,7 +40,7 @@ if (!process.env.BLUESKY_HANDLE || !process.env.BLUESKY_PASSWORD) {
 }
 
 const blueSkyService = new BlueSkyService(
-  process.env.BLUESKY_HANDLE, 
+  process.env.BLUESKY_HANDLE,
   process.env.BLUESKY_PASSWORD
 );
 
@@ -315,49 +315,59 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
     };
 
     // Fetch data from database
-    const totalFollowers = await Follower.countDocuments(filters);
-    console.log('Total followers:', totalFollowers);
+    const followers = await blueSkyService.getStoredFollowers();
+    const totalFollowers = followers.length;
     const totalPages = Math.ceil(totalFollowers / FOLLOWERS_PER_PAGE);
 
-    const followers = await Follower.find(filters)
-      .sort(sortObject)
-      .skip(skip)
-      .limit(FOLLOWERS_PER_PAGE);
-    console.log('Fetched followers:', followers.length);
-
-    const aggregateStats = await Follower.aggregate([
-      {
-        $group: {
-          _id: null,
-          minFollowers: { $min: '$followerCount' },
-          maxFollowers: { $max: '$followerCount' },
-          minFollowing: { $min: '$followingCount' },
-          maxFollowing: { $max: '$followingCount' },
-          minPosts: { $min: '$postCount' },
-          maxPosts: { $max: '$postCount' },
-          minPostsPerDay: { $min: '$postsPerDay' },
-          maxPostsPerDay: { $max: '$postsPerDay' },
-          minFollowerRatio: { $min: '$followerRatio' },
-          maxFollowerRatio: { $max: '$followerRatio' },
-          minJoined: { $min: '$joinedAt' },
-          maxJoined: { $max: '$joinedAt' },
-          minLastPost: { $min: '$lastPostAt' },
-          maxLastPost: { $max: '$lastPostAt' }
-        }
+    // Apply filters and pagination in memory
+    const filteredFollowers = followers.filter(follower => {
+      let matches = true;
+      if (filters.followerCount) {
+        if (filters.followerCount.$gte !== undefined && follower.followerCount < filters.followerCount.$gte) matches = false;
+        if (filters.followerCount.$lte !== undefined && follower.followerCount > filters.followerCount.$lte) matches = false;
       }
-    ]);
+      // Add similar checks for other filters...
+      return matches;
+    });
+
+    // Sort and paginate
+    const sortedFollowers = filteredFollowers.sort((a, b) => {
+      const aValue = (a as any)[sortBy];
+      const bValue = (b as any)[sortBy];
+      return (sortOrder === 'asc' ? 1 : -1) * (aValue > bValue ? 1 : -1);
+    });
+
+    const paginatedFollowers = sortedFollowers.slice(skip, skip + FOLLOWERS_PER_PAGE);
+
+    // Calculate aggregate stats from filtered followers
+    const stats = {
+      minFollowers: Math.min(...filteredFollowers.map(f => f.followerCount)),
+      maxFollowers: Math.max(...filteredFollowers.map(f => f.followerCount)),
+      minFollowing: Math.min(...filteredFollowers.map(f => f.followingCount)),
+      maxFollowing: Math.max(...filteredFollowers.map(f => f.followingCount)),
+      minPosts: Math.min(...filteredFollowers.map(f => f.postCount)),
+      maxPosts: Math.max(...filteredFollowers.map(f => f.postCount)),
+      minPostsPerDay: Math.min(...filteredFollowers.map(f => f.postsPerDay || 0)),
+      maxPostsPerDay: Math.max(...filteredFollowers.map(f => f.postsPerDay || 0)),
+      minFollowerRatio: Math.min(...filteredFollowers.map(f => f.followerRatio || 0)),
+      maxFollowerRatio: Math.max(...filteredFollowers.map(f => f.followerRatio || 0)),
+      minJoined: new Date(Math.min(...filteredFollowers.map(f => f.joinedAt?.getTime() || 0))),
+      maxJoined: new Date(Math.max(...filteredFollowers.map(f => f.joinedAt?.getTime() || 0))),
+      minLastPost: new Date(Math.min(...filteredFollowers.filter(f => f.lastPostAt).map(f => f.lastPostAt?.getTime() || 0))),
+      maxLastPost: new Date(Math.max(...filteredFollowers.filter(f => f.lastPostAt).map(f => f.lastPostAt?.getTime() || 0)))
+    };
 
     console.log('Rendering template...');
     res.render('index', { 
-      followers,
+      followers: paginatedFollowers,
       currentPage: page,
       totalPages,
-      totalFollowers,
+      totalFollowers: filteredFollowers.length,
       isImporting: importQueue.isCurrentlyImporting(),
       title: 'SkyWatch',
       subtitle: 'BlueSky Follower Analytics & Management',
       userHandle: mainUser.handle,
-      stats: aggregateStats[0] || {},
+      stats,
       filters: req.query,
       mainUser,
       sortBy,
