@@ -1,17 +1,17 @@
 /* Modern Container Layout */
 .container {
-    /* Set max-width relative to viewport width */
-    max-width: min(1400px, 95vw);
+    /* Increase max-width for larger screens */
+    max-width: min(1800px, 98vw);
     width: 100%;
     margin: 0 auto;
     display: grid;
     gap: var(--gap-large);
     grid-template-columns: 1fr;
-    /* Add consistent padding */
+    /* Reduce padding to maximize usable space */
     padding: 0 var(--container-padding);
     box-sizing: border-box;
-    /* Prevent overflow */
-    overflow-x: hidden;
+    /* Allow horizontal scroll only when absolutely necessary */
+    overflow-x: auto;
 }
 
 /* Card Styling */
@@ -24,8 +24,10 @@
     border: 1px solid var(--border-color);
     width: 100%;
     box-sizing: border-box;
-    /* Prevent card from causing horizontal scroll */
-    overflow: hidden;
+    /* Allow horizontal scroll only when needed */
+    overflow-x: auto;
+    /* Add smooth scrolling for better UX */
+    scroll-behavior: smooth;
 }
 
 .card:hover {
@@ -79,8 +81,10 @@
     z-index: 0;
     width: 100%;
     box-sizing: border-box;
-    /* Prevent content from causing horizontal scroll */
-    overflow: hidden;
+    /* Allow horizontal scroll only when needed */
+    overflow-x: auto;
+    /* Add smooth scrolling for better UX */
+    scroll-behavior: smooth;
 }
 
 .section-content.expanded {
@@ -91,7 +95,8 @@
 /* Controls Layout */
 .column-controls {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    /* Adjust grid columns for better use of space */
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: var(--gap-medium);
     width: 100%;
     box-sizing: border-box;
@@ -123,4 +128,3 @@
     color: var(--text-secondary);
     margin-top: var(--gap-small);
     font-size: 0.9rem;
-}
