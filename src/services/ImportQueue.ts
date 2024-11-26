@@ -1,21 +1,21 @@
-import { BlueSkyService } from './BlueSkyService';
 import { Follower, IFollower } from '../models/Follower';
 import mongoose from 'mongoose';
 import { Server } from 'socket.io';
 import * as cliProgress from 'cli-progress';
+import { IBlueSkyService } from './interfaces/IBlueSkyService';
 
 export interface ImportOptions {
   clearExisting?: boolean;
 }
 
 export class ImportQueue {
-  private blueSkyService: BlueSkyService;
+  private blueSkyService: IBlueSkyService;
   public socketServer?: Server;
   private isImporting: boolean = false;
   private progressBar?: cliProgress.SingleBar;
   private totalFollowersToImport: number = 0;
 
-  constructor(blueSkyService: BlueSkyService) {
+  constructor(blueSkyService: IBlueSkyService) {
     this.blueSkyService = blueSkyService;
   }
 

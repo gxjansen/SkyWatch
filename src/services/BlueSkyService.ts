@@ -1,10 +1,12 @@
+import { BskyAgent } from '@atproto/api';
 import { AuthenticationService } from './auth/AuthenticationService';
 import { ProfileService } from './profile/ProfileService';
 import { FollowerService } from './follower/FollowerService';
 import { DatabaseService } from './db/DatabaseService';
 import { IFollower } from '../models/Follower';
+import { IBlueSkyService } from './interfaces/IBlueSkyService';
 
-export class BlueSkyService {
+export class BlueSkyService implements IBlueSkyService {
   private authService: AuthenticationService;
   private profileService: ProfileService;
   private followerService: FollowerService;
@@ -37,18 +39,31 @@ export class BlueSkyService {
   }
 
   /**
-   * Unfollow a user
-   * @param did Decentralized Identifier of the user to unfollow
+   * Get followers with optional cursor
    */
-  async unfollowUser(did: string): Promise<boolean> {
-    return this.followerService.unfollowUser(did);
+  async getFollowers(cursor?: string) {
+    return this.followerService.getFollowers(cursor);
   }
 
   /**
-   * Fetch and store followers
+   * Get profile information for a specific user
    */
-  async fetchAndStoreFollowers(): Promise<Partial<IFollower>[]> {
-    return this.followerService.fetchAndStoreFollowers();
+  async getProfile(did: string) {
+    return this.profileService.getProfile(did);
+  }
+
+  /**
+   * Get the latest post timestamp for a user
+   */
+  async getLatestPostTimestamp(did: string): Promise<Date | undefined> {
+    return this.profileService.getLatestPostTimestamp(did);
+  }
+
+  /**
+   * Unfollow a user
+   */
+  async unfollowUser(did: string): Promise<boolean> {
+    return this.followerService.unfollowUser(did);
   }
 
   /**
@@ -60,7 +75,6 @@ export class BlueSkyService {
 
   /**
    * Set callback for tracking imported followers
-   * @param callback The callback function
    */
   setFollowerImportCallback(callback: (follower: Partial<IFollower>) => void) {
     this.followerService.onFollowerImported = callback;
