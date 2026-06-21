@@ -40,6 +40,19 @@
             font-weight: 600;
         }
         .connect-button:hover { background: #0a6cd6; }
+        .refresh-button {
+            margin-top: 10px;
+            background: #1185fe;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .refresh-button:hover { background: #0a6cd6; }
+        .refresh-button:disabled { opacity: 0.6; cursor: default; }
+        .refresh-hint { margin-left: 10px; font-size: 0.85em; opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -74,6 +87,10 @@
                 Total Imported Users: <%= totalFollowers %><% if (connected && mainUser.followingCount > 0) { %>
                 (<%= Math.floor((totalFollowers / mainUser.followingCount) * 100) %>%)<% } %>
             </div>
+            <% if (connected) { %>
+                <button id="refresh-button" type="button" class="refresh-button" onclick="refreshFollowers()">Refresh followers</button>
+                <span class="refresh-hint">Adds new follows and removes accounts you no longer follow.</span>
+            <% } %>
 
             <!-- Rest of the header card content -->
             <% if (connected) { %>

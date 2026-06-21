@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import { IFollower } from './models/Follower';
+import { Follower, IFollower } from './models/Follower';
 import { BlueSkyService } from './services/BlueSkyService';  // This path is correct since BlueSkyService is the orchestrator
 import { ImportQueue } from './services/ImportQueue';
 import { Server } from 'socket.io';
@@ -248,6 +248,41 @@ app.post('/unfollow', async (req: Request, res: Response) => {
       success: false, 
       message: error.message || 'An error occurred while unfollowing the user'
     });
+  }
+});
+
+// Trigger a follower refresh: adds newly-followed accounts and prunes any that
+// are no longer followed. Progress is polled via /import-progress.
+app.post('/import', async (req: Request, res: Response) => {
+  try {
+    const connected = await blueSkyService.authenticate();
+    if (!connected) {
+      return res.status(401).json({ success: false, message: 'Not connected to BlueSky. Visit /login.' });
+    }
+    if (importQueue.isCurrentlyImporting()) {
+      return res.status(409).json({ success: false, message: 'A refresh is already in progress' });
+    }
+    // Fire-and-forget; the client polls /import-progress for status.
+    importQueue.startImport({ clearExisting: false })
+      .catch(err => console.error('Refresh import failed:', err));
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error starting refresh:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to start refresh' });
+  }
+});
+
+// Import progress polling endpoint (consumed by the front-end).
+app.get('/import-progress', async (req: Request, res: Response) => {
+  try {
+    const total = await Follower.countDocuments();
+    res.json({
+      isImporting: importQueue.isCurrentlyImporting(),
+      total,
+      target: importQueue.getImportTarget()
+    });
+  } catch (error) {
+    res.status(500).json({ isImporting: false, total: 0, target: 0 });
   }
 });
 

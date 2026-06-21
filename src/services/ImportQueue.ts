@@ -14,6 +14,8 @@ export class ImportQueue {
   private isImporting: boolean = false;
   private progressBar?: cliProgress.SingleBar;
   private totalFollowersToImport: number = 0;
+  // DIDs still followed as of the current pass; used to prune removed accounts.
+  private seenDids: Set<string> = new Set();
 
   constructor(blueSkyService: IBlueSkyService) {
     this.blueSkyService = blueSkyService;
@@ -86,8 +88,21 @@ export class ImportQueue {
       // Initialize progress bar with current progress
       this.initializeProgressBar(this.totalFollowersToImport, existingCount);
 
+      // Reset the set of currently-followed accounts for this pass.
+      this.seenDids = new Set();
+
       // Start the import process
       await this.importFollowersBatched();
+
+      // Prune accounts that are no longer followed (unfollowed since last import).
+      // Skip when doing a full clear+reimport, and only prune if we actually saw
+      // follows this pass (guards against wiping everything on an anomaly).
+      if (!options.clearExisting && this.seenDids.size > 0) {
+        const pruneResult = await Follower.deleteMany({ did: { $nin: Array.from(this.seenDids) } });
+        if (pruneResult.deletedCount) {
+          console.log(`[ImportQueue] Pruned ${pruneResult.deletedCount} account(s) no longer followed`);
+        }
+      }
     } catch (error) {
       console.error('[ImportQueue] Import process failed:', error);
       this.isImporting = false;
@@ -121,6 +136,8 @@ export class ImportQueue {
 
       // Process each follower
       for (const follower of followersResponse.data.follows) {
+        // Record that this account is still followed (used for pruning).
+        this.seenDids.add(follower.did);
         try {
           // Check if we already have this follower
           const existingFollower = await Follower.findOne({ did: follower.did });
@@ -190,5 +207,9 @@ export class ImportQueue {
 
   isCurrentlyImporting(): boolean {
     return this.isImporting;
+  }
+
+  getImportTarget(): number {
+    return this.totalFollowersToImport;
   }
 }

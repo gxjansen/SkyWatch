@@ -81,32 +81,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Import progress functionality
   let importProgressInterval;
+  let refreshActive = false;
 
   function checkImportProgress() {
     fetch('/import-progress')
     .then(response => response.json())
     .then(data => {
-      if (data.isImporting) {
-        importProgressContainer.style.display = 'block';
-      }
-      
-      const progressPercentage = data.total > 0 
-        ? Math.min(Math.round((data.total / 500) * 100), 100)
-        : 0;
-      
-      progressBarFill.style.width = `${progressPercentage}%`;
-      progressText.textContent = `Importing: ${data.total} accounts`;
-      importedCountEl.textContent = `Total Imported Users: ${data.total}`;
-
       if (!data.isImporting) {
         clearInterval(importProgressInterval);
         importProgressContainer.style.display = 'none';
+        // After a user-triggered refresh, reload to show updated rows/counts.
+        if (refreshActive) {
+          refreshActive = false;
+          window.location.reload();
+        }
+        return;
       }
+
+      importProgressContainer.style.display = 'block';
+
+      // Use the live follow count as the target when available.
+      const target = data.target && data.target > 0 ? data.target : data.total;
+      const progressPercentage = target > 0
+        ? Math.min(Math.round((data.total / target) * 100), 100)
+        : 0;
+
+      progressBarFill.style.width = `${progressPercentage}%`;
+      progressText.textContent = `Refreshing: ${data.total}${target ? ' / ' + target : ''} accounts`;
+      importedCountEl.textContent = `Total Imported Users: ${data.total}`;
     })
     .catch(error => {
       console.error('Error checking import progress:', error);
     });
   }
+
+  // Refresh followers: triggers an incremental import (add new + prune removed).
+  window.refreshFollowers = function() {
+    const btn = document.getElementById('refresh-button');
+    if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+
+    fetch('/import', { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        alert('Could not start refresh: ' + (data.message || 'unknown error'));
+        if (btn) { btn.disabled = false; btn.textContent = 'Refresh followers'; }
+        return;
+      }
+      refreshActive = true;
+      importProgressContainer.style.display = 'block';
+      progressText.textContent = 'Refreshing…';
+      if (importProgressInterval) clearInterval(importProgressInterval);
+      importProgressInterval = setInterval(checkImportProgress, 2000);
+    })
+    .catch(error => {
+      console.error('Error starting refresh:', error);
+      alert('An error occurred while starting the refresh');
+      if (btn) { btn.disabled = false; btn.textContent = 'Refresh followers'; }
+    });
+  };
+
+  // If an import is already running when the page loads, show live progress.
+  checkImportProgress();
 
   // Filter form submission
   window.applyFilters = function(event) {
