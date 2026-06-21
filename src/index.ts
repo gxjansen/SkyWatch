@@ -16,7 +16,7 @@ async function main() {
   // Log environment variables for debugging
   console.log('🔍 Environment Variables:');
   console.log('   MONGODB_URI:', process.env.MONGODB_URI ? 'SET' : 'NOT SET');
-  console.log('   BLUESKY_HANDLE:', process.env.BLUESKY_HANDLE ? 'SET' : 'NOT SET');
+  console.log('   OWNER_HANDLE:', process.env.OWNER_HANDLE ? 'SET' : 'NOT SET');
 
   try {
     // Detailed MongoDB connection logging
@@ -42,7 +42,7 @@ async function main() {
       console.log(`   Total Followers in Database: ${totalFollowers}`);
 
       // Detailed collection information
-      const collectionInfo = await mongoose.connection.db.listCollections({ name: 'followers' }).toArray();
+      const collectionInfo = await mongoose.connection.db!.listCollections({ name: 'followers' }).toArray();
       console.log('   Collection Information:', JSON.stringify(collectionInfo, null, 2));
 
       // Optional: Display first few followers with more details

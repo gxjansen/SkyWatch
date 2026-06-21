@@ -1,4 +1,4 @@
-import { BskyAgent, AppBskyGraphGetFollows } from '@atproto/api';
+import { AppBskyGraphGetFollows } from '@atproto/api';
 import { IFollower } from '../../models/Follower';
 import { BlueSkyRateLimits } from '../rate/RateLimiter';
 import { AuthenticationService } from '../auth/AuthenticationService';
@@ -14,7 +14,6 @@ export class FollowerService {
   private authService: AuthenticationService;
   private profileService: ProfileService;
   private dbService: DatabaseService;
-  private agent: BskyAgent;
 
   // Callback for tracking imported followers
   onFollowerImported?: (follower: Partial<IFollower>) => void;
@@ -27,7 +26,6 @@ export class FollowerService {
     this.authService = authService;
     this.profileService = profileService;
     this.dbService = dbService;
-    this.agent = authService.getAgent();
   }
 
   /**
@@ -37,19 +35,14 @@ export class FollowerService {
    */
   async getFollowers(cursor?: string) {
     console.log(`[FollowerService] Fetching followers. Cursor: ${cursor || 'initial'}`);
-    if (!this.agent.session) {
-      const authSuccess = await this.authService.authenticate();
-      if (!authSuccess) {
-        throw new Error('Failed to authenticate with BlueSky');
-      }
-    }
+    const agent = await this.authService.requireAgent();
 
     try {
       // Wait for rate limit
       await BlueSkyRateLimits.FOLLOWS.waitForNextSlot();
-      
-      return await this.agent.getFollows({
-        actor: this.agent.session!.did,
+
+      return await agent.app.bsky.graph.getFollows({
+        actor: this.authService.getCurrentUserDid(),
         cursor: cursor,
         limit: 100 // Maximum allowed by BlueSky API
       });
@@ -69,9 +62,10 @@ export class FollowerService {
    */
   private async getFollowRecord(did: string): Promise<FollowRecord | null> {
     try {
+      const agent = await this.authService.requireAgent();
       await BlueSkyRateLimits.GENERAL.waitForNextSlot();
-      const response = await this.agent.api.app.bsky.graph.getFollows({
-        actor: this.agent.session!.did,
+      const response = await agent.app.bsky.graph.getFollows({
+        actor: this.authService.getCurrentUserDid(),
         limit: 100
       });
 
@@ -103,12 +97,7 @@ export class FollowerService {
       await BlueSkyRateLimits.UNFOLLOW.waitForNextSlot();
 
       // Ensure we're authenticated
-      if (!this.agent.session) {
-        const authSuccess = await this.authService.authenticate();
-        if (!authSuccess) {
-          throw new Error('Failed to authenticate with BlueSky');
-        }
-      }
+      const agent = await this.authService.requireAgent();
 
       // Get the follow record first
       const followRecord = await this.getFollowRecord(did);
@@ -123,7 +112,7 @@ export class FollowerService {
       }
 
       // Unfollow using the rkey
-      await this.agent.deleteFollow(rkey);
+      await agent.deleteFollow(followRecord.uri);
 
       // Remove from local database
       await this.dbService.removeFollower(did);
@@ -145,14 +134,9 @@ export class FollowerService {
   async fetchAndStoreFollowers(): Promise<Partial<IFollower>[]> {
     try {
       console.log('[FollowerService] Starting follower fetch and store process');
-      
-      // Ensure we're authenticated
-      if (!this.agent.session) {
-        const authSuccess = await this.authService.authenticate();
-        if (!authSuccess) {
-          throw new Error('Failed to authenticate with BlueSky');
-        }
-      }
+
+      // Ensure we're authenticated before starting the batch loop.
+      await this.authService.requireAgent();
 
       // Wait for rate limit
       await BlueSkyRateLimits.FOLLOWS.waitForNextSlot();

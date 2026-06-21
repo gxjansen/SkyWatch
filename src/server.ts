@@ -7,6 +7,8 @@ import { BlueSkyService } from './services/BlueSkyService';  // This path is cor
 import { ImportQueue } from './services/ImportQueue';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
+import { getOAuthClient } from './services/auth/oauthClient';
+import { randomUUID } from 'crypto';
 
 dotenv.config();
 
@@ -34,23 +36,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Validate required environment variables
-if (!process.env.BLUESKY_HANDLE || !process.env.BLUESKY_PASSWORD) {
-  throw new Error('BLUESKY_HANDLE and BLUESKY_PASSWORD must be set in .env file');
-}
-
-const blueSkyService = new BlueSkyService(
-  process.env.BLUESKY_HANDLE,
-  process.env.BLUESKY_PASSWORD
-);
+// Auth is OAuth-backed. OWNER_DID is optional (single-user tool); the stored
+// session is used when omitted. No BlueSky credentials live in the environment.
+const blueSkyService = new BlueSkyService(process.env.OWNER_DID);
 
 const importQueue = new ImportQueue(blueSkyService);
 importQueue.setSocketServer(io);
 
 mongoose.connect(process.env.MONGODB_URI || '')
-  .then(() => {
+  .then(async () => {
     console.log('MongoDB connected for web server');
-    // Start import if force import flag is set
+    // Restore the persisted OAuth session (if the owner has logged in before).
+    const authenticated = await blueSkyService.authenticate();
+    if (!authenticated) {
+      console.log(`[startup] No OAuth session yet. Visit http://127.0.0.1:${PORT}/login?handle=<your-handle> to connect BlueSky.`);
+      return;
+    }
+    // Start import if requested and we have a usable session.
     if (shouldForceImport || process.env.AUTO_IMPORT === 'true') {
       console.log('Starting follower import process...');
       importQueue.startImport({ clearExisting: shouldForceImport })
@@ -58,6 +60,41 @@ mongoose.connect(process.env.MONGODB_URI || '')
     }
   })
   .catch(err => console.error('MongoDB connection error:', err));
+
+// --- OAuth routes ---
+
+// Begin the OAuth flow: resolves the handle and redirects to the user's PDS authorize page.
+app.get('/login', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const handle = String(req.query.handle || process.env.OWNER_HANDLE || '').trim();
+    if (!handle) {
+      return res.status(400).send('Provide a handle: /login?handle=you.bsky.social');
+    }
+    const state = randomUUID();
+    const oauthClient = await getOAuthClient();
+    const url = await oauthClient.authorize(handle, { state });
+    res.redirect(url.toString());
+  } catch (error) {
+    console.error('[OAuth] authorize failed:', error);
+    next(error);
+  }
+});
+
+// OAuth redirect target: exchanges the code and persists the session.
+app.get('/oauth/callback', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const params = new URLSearchParams(req.url.split('?')[1] || '');
+    const oauthClient = await getOAuthClient();
+    const { session } = await oauthClient.callback(params);
+    console.log(`[OAuth] Logged in as ${session.did}`);
+    // Pick up the freshly stored session for this process.
+    await blueSkyService.authenticate();
+    res.redirect('/');
+  } catch (error) {
+    console.error('[OAuth] callback failed:', error);
+    next(error);
+  }
+});
 
 interface FilterQuery {
   followerCount?: {
@@ -160,8 +197,8 @@ async function getUserProfileData(blueSkyService: BlueSkyService): Promise<MainU
     console.error('Failed to get initial profile data:', error);
     // Return default values
     return {
-      handle: process.env.BLUESKY_HANDLE || '',
-      displayName: process.env.BLUESKY_HANDLE || '',
+      handle: process.env.OWNER_HANDLE || '',
+      displayName: process.env.OWNER_HANDLE || '',
       avatar: '',
       followerCount: 0,
       followingCount: 0,

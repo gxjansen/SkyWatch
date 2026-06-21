@@ -1,14 +1,11 @@
-import { BskyAgent } from '@atproto/api';
 import { BlueSkyRateLimits } from '../rate/RateLimiter';
 import { AuthenticationService } from '../auth/AuthenticationService';
 
 export class ProfileService {
   private authService: AuthenticationService;
-  private agent: BskyAgent;
 
   constructor(authService: AuthenticationService) {
     this.authService = authService;
-    this.agent = authService.getAgent();
   }
 
   /**
@@ -18,18 +15,13 @@ export class ProfileService {
    */
   async getProfile(did: string) {
     console.log(`[ProfileService] Fetching profile for DID: ${did}`);
-    if (!this.agent.session) {
-      const authSuccess = await this.authService.authenticate();
-      if (!authSuccess) {
-        throw new Error('Failed to authenticate with BlueSky');
-      }
-    }
+    const agent = await this.authService.requireAgent();
 
     try {
       // Wait for rate limit
       await BlueSkyRateLimits.GENERAL.waitForNextSlot();
-      
-      return await this.agent.getProfile({ actor: did });
+
+      return await agent.app.bsky.actor.getProfile({ actor: did });
     } catch (error: any) {
       if (error?.status === 429 && error?.headers) {
         BlueSkyRateLimits.GENERAL.updateFromHeaders(error.headers);
@@ -46,18 +38,13 @@ export class ProfileService {
    */
   async getLatestPostTimestamp(did: string): Promise<Date | undefined> {
     try {
-      if (!this.agent.session) {
-        const authSuccess = await this.authService.authenticate();
-        if (!authSuccess) {
-          throw new Error('Failed to authenticate with BlueSky');
-        }
-      }
+      const agent = await this.authService.requireAgent();
 
       // Wait for rate limit
       await BlueSkyRateLimits.GENERAL.waitForNextSlot();
 
       console.log(`[ProfileService] Fetching latest post for DID: ${did}`);
-      const feed = await this.agent.getAuthorFeed({
+      const feed = await agent.app.bsky.feed.getAuthorFeed({
         actor: did,
         limit: 1
       });
