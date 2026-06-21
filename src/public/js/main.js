@@ -255,6 +255,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   getRowCheckboxes().forEach(cb => cb.addEventListener('change', updateBulkBar));
 
+  // Toggle the starred (protected) flag on an account.
+  window.toggleStar = function(did, btn) {
+    const makeStarred = !btn.classList.contains('starred');
+    btn.disabled = true;
+    fetch('/star', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ did, starred: makeStarred })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        btn.classList.toggle('starred', !!data.starred);
+        btn.textContent = data.starred ? '★' : '☆';
+        btn.title = data.starred ? 'Starred (protected from bulk unfollow)' : 'Star to protect from bulk unfollow';
+      } else {
+        alert('Failed to update star: ' + (data.message || 'unknown error'));
+      }
+      btn.disabled = false;
+    })
+    .catch(error => {
+      console.error('Star toggle error:', error);
+      alert('An error occurred while updating the star');
+      btn.disabled = false;
+    });
+  };
+
   window.bulkUnfollow = function() {
     const dids = getRowCheckboxes().filter(cb => cb.checked).map(cb => cb.dataset.did);
     if (dids.length === 0) return;
@@ -289,9 +316,14 @@ document.addEventListener('DOMContentLoaded', () => {
         importedCountEl.textContent = `Total Imported Users: ${Math.max(0, parseInt(m[0]) - succeeded)}`;
       }
 
-      if (data.failedCount) {
-        const firstError = (results.find(r => !r.success) || {}).message || 'unknown error';
-        alert(`Unfollowed ${succeeded}. ${data.failedCount} failed (e.g. "${firstError}").`);
+      if (data.skipped || data.failedCount) {
+        const parts = [`Unfollowed ${succeeded}`];
+        if (data.skipped) parts.push(`${data.skipped} skipped (starred)`);
+        if (data.failedCount) {
+          const firstError = (results.find(r => !r.success && !r.skipped) || {}).message || 'unknown error';
+          parts.push(`${data.failedCount} failed (e.g. "${firstError}")`);
+        }
+        alert(parts.join('. ') + '.');
       }
 
       if (btn) { btn.disabled = false; btn.textContent = 'Unfollow selected'; }

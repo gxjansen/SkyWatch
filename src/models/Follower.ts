@@ -12,6 +12,7 @@ export interface IFollower extends mongoose.Document {
   joinedAt?: Date;
   lastPostAt?: Date;
   lastFetchedAt?: Date;
+  starred?: boolean;
   followerRatio?: number;
   postsPerDay?: number;
   calculateFollowerRatio(): number;
@@ -30,6 +31,7 @@ const FollowerSchema = new mongoose.Schema<IFollower>({
   joinedAt: { type: Date },
   lastPostAt: { type: Date },
   lastFetchedAt: { type: Date },
+  starred: { type: Boolean, default: false },
   followerRatio: {
     type: Number, 
     default: 0

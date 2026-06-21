@@ -159,6 +159,7 @@ interface QueryParams {
   maxJoined?: string;
   minLastPost?: string;
   maxLastPost?: string;
+  starred?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
@@ -289,26 +290,56 @@ app.post('/unfollow-bulk', async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Not connected to BlueSky. Visit /login.' });
     }
 
-    const results: { did: string; success: boolean; message?: string }[] = [];
+    // Starred accounts are protected: never bulk-unfollow them.
+    const starredDocs = await Follower.find(
+      { did: { $in: dids.map(String) }, starred: true },
+      { did: 1 }
+    ).lean();
+    const starredSet = new Set(starredDocs.map(d => d.did));
+
+    const results: { did: string; success: boolean; skipped?: boolean; message?: string }[] = [];
     for (const did of dids) {
+      const didStr = String(did);
+      if (starredSet.has(didStr)) {
+        results.push({ did: didStr, success: false, skipped: true, message: 'Starred (protected)' });
+        continue;
+      }
       try {
-        await blueSkyService.unfollowUser(String(did));
-        results.push({ did: String(did), success: true });
+        await blueSkyService.unfollowUser(didStr);
+        results.push({ did: didStr, success: true });
       } catch (err: any) {
-        results.push({ did: String(did), success: false, message: err?.message || 'Failed' });
+        results.push({ did: didStr, success: false, message: err?.message || 'Failed' });
       }
     }
 
-    const failedCount = results.filter(r => !r.success).length;
+    const unfollowed = results.filter(r => r.success).length;
+    const skipped = results.filter(r => r.skipped).length;
+    const failedCount = results.filter(r => !r.success && !r.skipped).length;
     res.json({
       success: failedCount === 0,
-      unfollowed: results.length - failedCount,
+      unfollowed,
+      skipped,
       failedCount,
       results
     });
   } catch (error: any) {
     console.error('Error in bulk unfollow endpoint:', error);
     res.status(500).json({ success: false, message: error.message || 'Bulk unfollow failed' });
+  }
+});
+
+// Toggle the "starred" (protected) flag on an account.
+app.post('/star', async (req: Request, res: Response) => {
+  try {
+    const { did, starred } = req.body;
+    if (!did) {
+      return res.status(400).json({ success: false, message: 'DID is required' });
+    }
+    await Follower.updateOne({ did: String(did) }, { $set: { starred: !!starred } });
+    res.json({ success: true, starred: !!starred });
+  } catch (error: any) {
+    console.error('Error in star endpoint:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to update star' });
   }
 });
 
@@ -490,6 +521,12 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       return true;
     };
 
+    const starredFilter = req.query.starred; // 'starred' | 'unstarred' | undefined
+    const matchesStar = (f: typeof followers[number]) =>
+      starredFilter === 'starred' ? !!f.starred
+      : starredFilter === 'unstarred' ? !f.starred
+      : true;
+
     const filteredFollowers = followers.filter(follower =>
       inNumRange(follower.followerCount, filters.followerCount) &&
       inNumRange(follower.followingCount, filters.followingCount) &&
@@ -497,7 +534,8 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       inNumRange(follower.postsPerDay, filters.postsPerDay) &&
       inNumRange(follower.followerRatio, filters.followerRatio) &&
       inDateRange(follower.joinedAt, filters.joinedAt) &&
-      inDateRange(follower.lastPostAt, filters.lastPostAt)
+      inDateRange(follower.lastPostAt, filters.lastPostAt) &&
+      matchesStar(follower)
     );
 
     // Pagination is based on the filtered result set.
@@ -543,7 +581,8 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       'minLastPost', 'maxLastPost'
     ];
     const q = req.query as Record<string, string | undefined>;
-    const filterActive = filterKeys.some(k => !!q[k]);
+    const filterActive = filterKeys.some(k => !!q[k])
+      || q.starred === 'starred' || q.starred === 'unstarred';
 
     console.log('Rendering template...');
     res.render('index', {
