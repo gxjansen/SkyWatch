@@ -53,6 +53,7 @@
         .refresh-button:hover { background: #0a6cd6; }
         .refresh-button:disabled { opacity: 0.6; cursor: default; }
         .refresh-hint { margin-left: 10px; font-size: 0.85em; opacity: 0.7; }
+        .freshness { margin-top: 8px; font-size: 0.85em; opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -89,7 +90,20 @@
             </div>
             <% if (connected) { %>
                 <button id="refresh-button" type="button" class="refresh-button" onclick="refreshFollowers()">Refresh followers</button>
-                <span class="refresh-hint">Adds new follows and removes accounts you no longer follow.</span>
+                <span class="refresh-hint">Adds new follows, refreshes stale data, and removes accounts you no longer follow.</span>
+                <div class="freshness">
+                    <% if (freshness.newest) { %>
+                        Data updated between <%= freshness.oldest.toISOString().slice(0,16).replace('T',' ') %>
+                        and <%= freshness.newest.toISOString().slice(0,16).replace('T',' ') %> UTC.
+                    <% } else { %>
+                        No profile data has been fetched yet.
+                    <% } %>
+                    <% if (freshness.staleCount > 0) { %>
+                        <strong><%= freshness.staleCount %></strong> account(s) older than <%= freshness.staleDays %> day(s)<% if (freshness.neverFetched > 0) { %> (<%= freshness.neverFetched %> never fetched)<% } %> will be refreshed on the next run.
+                    <% } else { %>
+                        All data is fresh (within <%= freshness.staleDays %> days).
+                    <% } %>
+                </div>
             <% } %>
 
             <!-- Rest of the header card content -->
@@ -164,6 +178,7 @@
                     <label><input type="checkbox" class="column-toggle" id="col-followerRatio" checked> Follower Ratio</label>
                     <label><input type="checkbox" class="column-toggle" id="col-joinedAt" checked> Joined</label>
                     <label><input type="checkbox" class="column-toggle" id="col-lastPostAt" checked> Last Post</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-lastFetchedAt" checked> Last Fetched</label>
                     <label><input type="checkbox" class="column-toggle" id="col-actions" checked> Actions</label>
                 </div>
             </div>
@@ -239,6 +254,7 @@
                             <th class="sortable <%= sortBy === 'followerRatio' ? sortOrder : '' %>" data-column="followerRatio">Follower Ratio</th>
                             <th class="sortable <%= sortBy === 'joinedAt' ? sortOrder : '' %>" data-column="joinedAt">Joined</th>
                             <th class="sortable <%= sortBy === 'lastPostAt' ? sortOrder : '' %>" data-column="lastPostAt">Last Post</th>
+                            <th class="sortable <%= sortBy === 'lastFetchedAt' ? sortOrder : '' %>" data-column="lastFetchedAt">Last Fetched</th>
                             <th data-column="actions">Actions</th>
                         </tr>
                     </thead>
@@ -265,6 +281,7 @@
                                 <td data-column="followerRatio"><%= follower.followerRatio.toFixed(1) %></td>
                                 <td data-column="joinedAt"><%= follower.joinedAt ? follower.joinedAt.toISOString().split('T')[0] : 'N/A' %></td>
                                 <td data-column="lastPostAt"><%= follower.lastPostAt ? follower.lastPostAt.toISOString().split('T')[0] : 'N/A' %></td>
+                                <td data-column="lastFetchedAt"><%= follower.lastFetchedAt ? follower.lastFetchedAt.toISOString().split('T')[0] : 'Never' %></td>
                                 <td data-column="actions">
                                     <button onclick="unfollowUser('<%= follower.did %>')">Unfollow</button>
                                 </td>

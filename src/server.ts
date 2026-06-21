@@ -279,6 +279,7 @@ app.get('/import-progress', async (req: Request, res: Response) => {
     res.json({
       isImporting: importQueue.isCurrentlyImporting(),
       total,
+      processed: importQueue.getProcessedCount(),
       target: importQueue.getImportTarget()
     });
   } catch (error) {
@@ -395,6 +396,20 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
     const totalFollowers = followers.length;
     const totalPages = Math.ceil(totalFollowers / FOLLOWERS_PER_PAGE);
 
+    // Compute data freshness across all stored accounts.
+    const staleDays = Number(process.env.REFRESH_STALE_DAYS || 7);
+    const staleCutoffMs = Date.now() - staleDays * 24 * 60 * 60 * 1000;
+    const fetchTimesMs = followers
+      .map(f => (f.lastFetchedAt ? f.lastFetchedAt.getTime() : null))
+      .filter((t): t is number => t !== null);
+    const freshness = {
+      staleDays,
+      newest: fetchTimesMs.length ? new Date(Math.max(...fetchTimesMs)) : null,
+      oldest: fetchTimesMs.length ? new Date(Math.min(...fetchTimesMs)) : null,
+      staleCount: followers.filter(f => !f.lastFetchedAt || f.lastFetchedAt.getTime() < staleCutoffMs).length,
+      neverFetched: followers.filter(f => !f.lastFetchedAt).length
+    };
+
     // Apply filters and pagination in memory
     const filteredFollowers = followers.filter(follower => {
       let matches = true;
@@ -448,7 +463,8 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       mainUser,
       sortBy,
       sortOrder,
-      connected
+      connected,
+      freshness
     });
     console.log('Template rendered successfully');
   } catch (error) {

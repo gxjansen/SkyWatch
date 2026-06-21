@@ -11,6 +11,7 @@ export interface IFollower extends mongoose.Document {
   postCount: number;
   joinedAt?: Date;
   lastPostAt?: Date;
+  lastFetchedAt?: Date;
   followerRatio?: number;
   postsPerDay?: number;
   calculateFollowerRatio(): number;
