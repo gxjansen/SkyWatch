@@ -100,14 +100,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       importProgressContainer.style.display = 'block';
 
-      // Use the live follow count as the target when available.
-      const target = data.target && data.target > 0 ? data.target : data.total;
+      // Progress is "accounts processed this pass" out of the live follow count.
+      // (Don't use the DB document count — it barely changes during a refresh.)
+      const processed = typeof data.processed === 'number' ? data.processed : 0;
+      const target = data.target && data.target > 0 ? data.target : 0;
       const progressPercentage = target > 0
-        ? Math.min(Math.round((data.total / target) * 100), 100)
+        ? Math.min(Math.round((processed / target) * 100), 100)
         : 0;
 
       progressBarFill.style.width = `${progressPercentage}%`;
-      progressText.textContent = `Refreshing: ${data.total}${target ? ' / ' + target : ''} accounts`;
+      progressText.textContent = target
+        ? `Refreshing: ${processed} / ${target} accounts (${progressPercentage}%)`
+        : `Refreshing: ${processed} accounts`;
       importedCountEl.textContent = `Total Imported Users: ${data.total}`;
     })
     .catch(error => {
