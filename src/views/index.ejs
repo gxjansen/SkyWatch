@@ -19,9 +19,42 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles/main.css">
     <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <style>
+        .connect-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            border: 1px solid #f0b400;
+            background: rgba(240, 180, 0, 0.12);
+        }
+        .connect-banner-text { flex: 1; min-width: 240px; }
+        .connect-button {
+            white-space: nowrap;
+            background: #1185fe;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .connect-button:hover { background: #0a6cd6; }
+    </style>
 </head>
 <body>
     <div class="container">
+        <!-- Not-connected banner -->
+        <% if (!connected) { %>
+            <div class="card connect-banner">
+                <div class="connect-banner-text">
+                    <strong>Not connected to BlueSky.</strong>
+                    The data below is from a previous import. Connect your account to refresh stats, import new followers, and unfollow.
+                </div>
+                <a class="connect-button" href="/login?handle=<%= encodeURIComponent(mainUser.handle || '') %>">Connect BlueSky</a>
+            </div>
+        <% } %>
+
         <!-- Header Section -->
         <div class="card header-card">
             <div class="logo-container">
@@ -29,18 +62,21 @@
                 <div class="title-container">
                     <h1>
                         <span class="title-static">SkyWatch</span>
-                        <span class="title-dynamic">for <%= mainUser.displayName || mainUser.handle %></span>
+                        <% if (connected) { %>
+                            <span class="title-dynamic">for <%= mainUser.displayName || mainUser.handle %></span>
+                        <% } %>
                     </h1>
                     <p class="subtitle"><%= subtitle %></p>
                 </div>
             </div>
             <!-- Rest of the file remains exactly the same -->
             <div id="imported-count">
-                Total Imported Users: <%= totalFollowers %> 
-                (<%= Math.floor((totalFollowers / mainUser.followingCount) * 100) %>%)
+                Total Imported Users: <%= totalFollowers %><% if (connected && mainUser.followingCount > 0) { %>
+                (<%= Math.floor((totalFollowers / mainUser.followingCount) * 100) %>%)<% } %>
             </div>
 
             <!-- Rest of the header card content -->
+            <% if (connected) { %>
             <div class="main-user-stats">
                 <h2>Your Account Stats</h2>
                 <div class="table-container">
@@ -86,6 +122,7 @@
                     </table>
                 </div>
             </div>
+            <% } %>
 
             <div id="import-progress-container" class="progress-container" style="display: <%= isImporting ? 'block' : 'none' %>;">
                 <div class="progress-bar">

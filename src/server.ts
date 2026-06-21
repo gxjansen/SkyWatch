@@ -265,6 +265,10 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
     const mainUser = await getUserProfileData(blueSkyService);
     console.log('Got profile data:', mainUser);
 
+    // Whether a real OAuth session is active. When false, the page is showing
+    // cached data only and we surface a "Connect BlueSky" prompt.
+    const connected = await blueSkyService.authenticate();
+
     // Filter parameters
     const filters: FilterQuery = {};
 
@@ -408,7 +412,8 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       filters: req.query,
       mainUser,
       sortBy,
-      sortOrder
+      sortOrder,
+      connected
     });
     console.log('Template rendered successfully');
   } catch (error) {
