@@ -54,6 +54,27 @@
         .refresh-button:disabled { opacity: 0.6; cursor: default; }
         .refresh-hint { margin-left: 10px; font-size: 0.85em; opacity: 0.7; }
         .freshness { margin-top: 8px; font-size: 0.85em; opacity: 0.8; }
+        .bulk-bar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 12px 0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: rgba(255, 59, 59, 0.10);
+            border: 1px solid #ff3b3b;
+        }
+        .bulk-unfollow-button {
+            background: #ff3b3b;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .bulk-unfollow-button:hover { background: #d62f2f; }
+        .bulk-unfollow-button:disabled { opacity: 0.6; cursor: default; }
     </style>
 </head>
 <body>
@@ -237,11 +258,19 @@
             <div class="dynamic-update-notification">
                 Values will dynamically update based on your filters
             </div>
-            
+
+            <% if (connected) { %>
+            <div id="bulk-bar" class="bulk-bar" style="display:none;">
+                <span id="selected-count">0 selected</span>
+                <button type="button" class="bulk-unfollow-button" onclick="bulkUnfollow()">Unfollow selected</button>
+            </div>
+            <% } %>
+
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
+                            <% if (connected) { %><th data-column="select"><input type="checkbox" id="select-all" title="Select all on this page"></th><% } %>
                             <th data-column="avatar">Avatar</th>
                             <th class="sortable <%= sortBy === 'displayName' ? sortOrder : '' %>" data-column="displayName">Name</th>
                             <th class="sortable <%= sortBy === 'handle' ? sortOrder : '' %>" data-column="handle">Handle</th>
@@ -261,6 +290,7 @@
                     <tbody>
                         <% followers.forEach(function(follower) { %>
                             <tr>
+                                <% if (connected) { %><td data-column="select"><input type="checkbox" class="row-select" data-did="<%= follower.did %>"></td><% } %>
                                 <td data-column="avatar">
                                     <% if (follower.avatar) { %>
                                         <img src="<%= follower.avatar %>" alt="<%= follower.handle %>'s avatar" class="avatar">

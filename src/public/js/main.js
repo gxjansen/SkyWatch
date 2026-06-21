@@ -207,4 +207,82 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('An error occurred while unfollowing');
     });
   };
+
+  // Bulk selection + unfollow
+  const selectAll = document.getElementById('select-all');
+  const bulkBar = document.getElementById('bulk-bar');
+  const selectedCountEl = document.getElementById('selected-count');
+
+  function getRowCheckboxes() {
+    return Array.from(document.querySelectorAll('.row-select'));
+  }
+
+  function updateBulkBar() {
+    if (!bulkBar) return;
+    const boxes = getRowCheckboxes();
+    const checked = boxes.filter(cb => cb.checked);
+    if (selectedCountEl) selectedCountEl.textContent = `${checked.length} selected`;
+    bulkBar.style.display = checked.length > 0 ? 'flex' : 'none';
+    if (selectAll) {
+      selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+      selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+    }
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      getRowCheckboxes().forEach(cb => { cb.checked = selectAll.checked; });
+      updateBulkBar();
+    });
+  }
+  getRowCheckboxes().forEach(cb => cb.addEventListener('change', updateBulkBar));
+
+  window.bulkUnfollow = function() {
+    const dids = getRowCheckboxes().filter(cb => cb.checked).map(cb => cb.dataset.did);
+    if (dids.length === 0) return;
+    if (!confirm(`Unfollow ${dids.length} selected account(s)? This cannot be undone.`)) {
+      return;
+    }
+
+    const btn = document.querySelector('.bulk-unfollow-button');
+    if (btn) { btn.disabled = true; btn.textContent = `Unfollowing ${dids.length}…`; }
+
+    fetch('/unfollow-bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dids })
+    })
+    .then(response => response.json())
+    .then(data => {
+      const results = data.results || [];
+      let succeeded = 0;
+      results.forEach(res => {
+        if (res.success) {
+          succeeded++;
+          const cb = document.querySelector(`.row-select[data-did="${res.did}"]`);
+          const row = cb && cb.closest('tr');
+          if (row) row.remove();
+        }
+      });
+
+      // Update the total count.
+      const m = importedCountEl.textContent.match(/\d+/);
+      if (m) {
+        importedCountEl.textContent = `Total Imported Users: ${Math.max(0, parseInt(m[0]) - succeeded)}`;
+      }
+
+      if (data.failedCount) {
+        const firstError = (results.find(r => !r.success) || {}).message || 'unknown error';
+        alert(`Unfollowed ${succeeded}. ${data.failedCount} failed (e.g. "${firstError}").`);
+      }
+
+      if (btn) { btn.disabled = false; btn.textContent = 'Unfollow selected'; }
+      updateBulkBar();
+    })
+    .catch(error => {
+      console.error('Bulk unfollow error:', error);
+      alert('An error occurred during bulk unfollow');
+      if (btn) { btn.disabled = false; btn.textContent = 'Unfollow selected'; }
+    });
+  };
 });

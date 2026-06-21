@@ -268,10 +268,47 @@ app.post('/unfollow', async (req: Request, res: Response) => {
     }
   } catch (error: any) {
     console.error('Error in unfollow endpoint:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: error.message || 'An error occurred while unfollowing the user'
     });
+  }
+});
+
+// Bulk unfollow endpoint: unfollows each DID sequentially (respecting rate
+// limits) and returns a per-account result so the UI can report partial failures.
+app.post('/unfollow-bulk', async (req: Request, res: Response) => {
+  try {
+    const { dids } = req.body;
+    if (!Array.isArray(dids) || dids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No accounts selected' });
+    }
+
+    const connected = await blueSkyService.authenticate();
+    if (!connected) {
+      return res.status(401).json({ success: false, message: 'Not connected to BlueSky. Visit /login.' });
+    }
+
+    const results: { did: string; success: boolean; message?: string }[] = [];
+    for (const did of dids) {
+      try {
+        await blueSkyService.unfollowUser(String(did));
+        results.push({ did: String(did), success: true });
+      } catch (err: any) {
+        results.push({ did: String(did), success: false, message: err?.message || 'Failed' });
+      }
+    }
+
+    const failedCount = results.filter(r => !r.success).length;
+    res.json({
+      success: failedCount === 0,
+      unfollowed: results.length - failedCount,
+      failedCount,
+      results
+    });
+  } catch (error: any) {
+    console.error('Error in bulk unfollow endpoint:', error);
+    res.status(500).json({ success: false, message: error.message || 'Bulk unfollow failed' });
   }
 });
 
