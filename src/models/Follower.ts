@@ -29,7 +29,8 @@ const FollowerSchema = new mongoose.Schema<IFollower>({
   postCount: { type: Number, default: 0 },
   joinedAt: { type: Date },
   lastPostAt: { type: Date },
-  followerRatio: { 
+  lastFetchedAt: { type: Date },
+  followerRatio: {
     type: Number, 
     default: 0
   },

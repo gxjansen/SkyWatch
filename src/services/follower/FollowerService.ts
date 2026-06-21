@@ -1,14 +1,8 @@
-import { AppBskyGraphGetFollows } from '@atproto/api';
 import { IFollower } from '../../models/Follower';
 import { BlueSkyRateLimits } from '../rate/RateLimiter';
 import { AuthenticationService } from '../auth/AuthenticationService';
 import { ProfileService } from '../profile/ProfileService';
 import { DatabaseService } from '../db/DatabaseService';
-
-interface FollowRecord {
-  uri: string;
-  did: string;
-}
 
 export class FollowerService {
   private authService: AuthenticationService;
@@ -56,37 +50,6 @@ export class FollowerService {
   }
 
   /**
-   * Get follow record for a user
-   * @param did Decentralized Identifier of the user
-   * @returns Promise resolving to the follow record or null
-   */
-  private async getFollowRecord(did: string): Promise<FollowRecord | null> {
-    try {
-      const agent = await this.authService.requireAgent();
-      await BlueSkyRateLimits.GENERAL.waitForNextSlot();
-      const response = await agent.app.bsky.graph.getFollows({
-        actor: this.authService.getCurrentUserDid(),
-        limit: 100
-      });
-
-      // Find the follow record for this user
-      const followRecord = response.data.follows.find(f => f.did === did) as AppBskyGraphGetFollows.OutputSchema['follows'][0];
-      if (!followRecord || !followRecord.uri) {
-        console.log(`[FollowerService] Follow record not found for ${did}`);
-        return null;
-      }
-
-      return {
-        did: followRecord.did,
-        uri: followRecord.uri as string
-      };
-    } catch (error: any) {
-      console.error(`[FollowerService] Error getting follow record for ${did}:`, error);
-      return null;
-    }
-  }
-
-  /**
    * Unfollow a user
    * @param did Decentralized Identifier of the user to unfollow
    * @returns Promise resolving to boolean indicating success
@@ -99,20 +62,20 @@ export class FollowerService {
       // Ensure we're authenticated
       const agent = await this.authService.requireAgent();
 
-      // Get the follow record first
-      const followRecord = await this.getFollowRecord(did);
-      if (!followRecord) {
-        throw new Error('Could not find follow record');
+      // The follow-record URI is returned on the profile's viewer state. This
+      // works no matter how many accounts you follow (no pagination needed).
+      const profile = await agent.app.bsky.actor.getProfile({ actor: did });
+      const followUri = profile.data.viewer?.following;
+
+      if (!followUri) {
+        // Not actually following (already unfollowed / stale row): reconcile the
+        // local DB and treat as success, since the desired end state holds.
+        await this.dbService.removeFollower(did);
+        return true;
       }
 
-      // Get the rkey from the follow record URI
-      const rkey = followRecord.uri.split('/').pop();
-      if (!rkey) {
-        throw new Error('Invalid follow record URI');
-      }
-
-      // Unfollow using the rkey
-      await agent.deleteFollow(followRecord.uri);
+      // Delete the follow record by its URI.
+      await agent.deleteFollow(followUri);
 
       // Remove from local database
       await this.dbService.removeFollower(did);

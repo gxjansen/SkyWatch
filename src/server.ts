@@ -46,6 +46,22 @@ importQueue.setSocketServer(io);
 mongoose.connect(process.env.MONGODB_URI || '')
   .then(async () => {
     console.log('MongoDB connected for web server');
+
+    // One-time backfill: records imported before lastFetchedAt existed have no
+    // value and would show "Never". Seed it from updatedAt (when the record was
+    // last written/fetched). Idempotent — only fills records missing the field.
+    try {
+      const backfill = await Follower.updateMany(
+        { lastFetchedAt: { $exists: false } },
+        [{ $set: { lastFetchedAt: '$updatedAt' } }]
+      );
+      if (backfill.modifiedCount) {
+        console.log(`[startup] Backfilled lastFetchedAt for ${backfill.modifiedCount} record(s)`);
+      }
+    } catch (err) {
+      console.error('[startup] lastFetchedAt backfill failed:', err);
+    }
+
     // Restore the persisted OAuth session (if the owner has logged in before).
     const authenticated = await blueSkyService.authenticate();
     if (!authenticated) {
@@ -158,6 +174,14 @@ interface MainUser {
   followerRatio: number;
   joinedAt: string;
   lastPostAt: string | null;
+}
+
+// Parse a yyyy-mm-dd date string as the end of that day, so max-date filters
+// include the whole day rather than cutting off at midnight.
+function endOfDay(dateStr: string): Date {
+  const d = new Date(dateStr);
+  d.setHours(23, 59, 59, 999);
+  return d;
 }
 
 // Helper function to get user profile data
@@ -370,7 +394,7 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
     if (req.query.maxJoined) {
       filters.joinedAt = {
         ...filters.joinedAt,
-        $lte: new Date(req.query.maxJoined)
+        $lte: endOfDay(req.query.maxJoined)
       };
     }
 
@@ -381,7 +405,7 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
     if (req.query.maxLastPost) {
       filters.lastPostAt = {
         ...filters.lastPostAt,
-        $lte: new Date(req.query.maxLastPost)
+        $lte: endOfDay(req.query.maxLastPost)
       };
     }
 
@@ -394,7 +418,6 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
     // Fetch data from database
     const followers = await blueSkyService.getStoredFollowers();
     const totalFollowers = followers.length;
-    const totalPages = Math.ceil(totalFollowers / FOLLOWERS_PER_PAGE);
 
     // Compute data freshness across all stored accounts.
     const staleDays = Number(process.env.REFRESH_STALE_DAYS || 7);
@@ -410,16 +433,36 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       neverFetched: followers.filter(f => !f.lastFetchedAt).length
     };
 
-    // Apply filters and pagination in memory
-    const filteredFollowers = followers.filter(follower => {
-      let matches = true;
-      if (filters.followerCount) {
-        if (filters.followerCount.$gte !== undefined && follower.followerCount < filters.followerCount.$gte) matches = false;
-        if (filters.followerCount.$lte !== undefined && follower.followerCount > filters.followerCount.$lte) matches = false;
-      }
-      // Add similar checks for other filters...
-      return matches;
-    });
+    // Apply filters in memory. Numeric ranges treat a missing value as 0;
+    // date ranges exclude records with no date when that filter is active.
+    const inNumRange = (val: number | undefined, range?: { $gte?: number; $lte?: number }) => {
+      if (!range) return true;
+      const v = typeof val === 'number' ? val : 0;
+      if (range.$gte !== undefined && v < range.$gte) return false;
+      if (range.$lte !== undefined && v > range.$lte) return false;
+      return true;
+    };
+    const inDateRange = (val: Date | undefined, range?: { $gte?: Date; $lte?: Date }) => {
+      if (!range) return true;
+      if (!val) return false;
+      const t = val.getTime();
+      if (range.$gte !== undefined && t < range.$gte.getTime()) return false;
+      if (range.$lte !== undefined && t > range.$lte.getTime()) return false;
+      return true;
+    };
+
+    const filteredFollowers = followers.filter(follower =>
+      inNumRange(follower.followerCount, filters.followerCount) &&
+      inNumRange(follower.followingCount, filters.followingCount) &&
+      inNumRange(follower.postCount, filters.postCount) &&
+      inNumRange(follower.postsPerDay, filters.postsPerDay) &&
+      inNumRange(follower.followerRatio, filters.followerRatio) &&
+      inDateRange(follower.joinedAt, filters.joinedAt) &&
+      inDateRange(follower.lastPostAt, filters.lastPostAt)
+    );
+
+    // Pagination is based on the filtered result set.
+    const totalPages = Math.max(1, Math.ceil(filteredFollowers.length / FOLLOWERS_PER_PAGE));
 
     // Sort and paginate
     const sortedFollowers = filteredFollowers.sort((a, b) => {
@@ -430,22 +473,27 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
 
     const paginatedFollowers = sortedFollowers.slice(skip, skip + FOLLOWERS_PER_PAGE);
 
-    // Calculate aggregate stats from filtered followers
+    // Calculate aggregate stats from filtered followers. Guard against an empty
+    // result set (Math.min/max of [] is ±Infinity).
+    const safeMin = (arr: number[]) => (arr.length ? Math.min(...arr) : 0);
+    const safeMax = (arr: number[]) => (arr.length ? Math.max(...arr) : 0);
+    const lastPostTimes = filteredFollowers.filter(f => f.lastPostAt).map(f => f.lastPostAt!.getTime());
+    const joinedTimes = filteredFollowers.filter(f => f.joinedAt).map(f => f.joinedAt!.getTime());
     const stats = {
-      minFollowers: Math.min(...filteredFollowers.map(f => f.followerCount)),
-      maxFollowers: Math.max(...filteredFollowers.map(f => f.followerCount)),
-      minFollowing: Math.min(...filteredFollowers.map(f => f.followingCount)),
-      maxFollowing: Math.max(...filteredFollowers.map(f => f.followingCount)),
-      minPosts: Math.min(...filteredFollowers.map(f => f.postCount)),
-      maxPosts: Math.max(...filteredFollowers.map(f => f.postCount)),
-      minPostsPerDay: Math.min(...filteredFollowers.map(f => f.postsPerDay || 0)),
-      maxPostsPerDay: Math.max(...filteredFollowers.map(f => f.postsPerDay || 0)),
-      minFollowerRatio: Math.min(...filteredFollowers.map(f => f.followerRatio || 0)),
-      maxFollowerRatio: Math.max(...filteredFollowers.map(f => f.followerRatio || 0)),
-      minJoined: new Date(Math.min(...filteredFollowers.map(f => f.joinedAt?.getTime() || 0))),
-      maxJoined: new Date(Math.max(...filteredFollowers.map(f => f.joinedAt?.getTime() || 0))),
-      minLastPost: new Date(Math.min(...filteredFollowers.filter(f => f.lastPostAt).map(f => f.lastPostAt?.getTime() || 0))),
-      maxLastPost: new Date(Math.max(...filteredFollowers.filter(f => f.lastPostAt).map(f => f.lastPostAt?.getTime() || 0)))
+      minFollowers: safeMin(filteredFollowers.map(f => f.followerCount)),
+      maxFollowers: safeMax(filteredFollowers.map(f => f.followerCount)),
+      minFollowing: safeMin(filteredFollowers.map(f => f.followingCount)),
+      maxFollowing: safeMax(filteredFollowers.map(f => f.followingCount)),
+      minPosts: safeMin(filteredFollowers.map(f => f.postCount)),
+      maxPosts: safeMax(filteredFollowers.map(f => f.postCount)),
+      minPostsPerDay: safeMin(filteredFollowers.map(f => f.postsPerDay || 0)),
+      maxPostsPerDay: safeMax(filteredFollowers.map(f => f.postsPerDay || 0)),
+      minFollowerRatio: safeMin(filteredFollowers.map(f => f.followerRatio || 0)),
+      maxFollowerRatio: safeMax(filteredFollowers.map(f => f.followerRatio || 0)),
+      minJoined: new Date(safeMin(joinedTimes)),
+      maxJoined: new Date(safeMax(joinedTimes)),
+      minLastPost: new Date(safeMin(lastPostTimes)),
+      maxLastPost: new Date(safeMax(lastPostTimes))
     };
 
     console.log('Rendering template...');
