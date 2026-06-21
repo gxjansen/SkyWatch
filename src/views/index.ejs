@@ -54,6 +54,7 @@
         .refresh-button:disabled { opacity: 0.6; cursor: default; }
         .refresh-hint { margin-left: 10px; font-size: 0.85em; opacity: 0.7; }
         .freshness { margin-top: 8px; font-size: 0.85em; opacity: 0.8; }
+        .filter-result-count { margin-top: 12px; font-size: 0.9em; opacity: 0.85; }
         .bulk-bar {
             display: flex;
             align-items: center;
@@ -254,7 +255,12 @@
         <!-- Data Table Section -->
         <div class="card">
             <h2>The accounts you follow</h2>
-            
+            <% if (filterActive) { %>
+                <div class="filter-result-count">Showing <strong><%= filteredCount.toLocaleString() %></strong> of <%= unfilteredTotal.toLocaleString() %> accounts (filtered).</div>
+            <% } else { %>
+                <div class="filter-result-count"><strong><%= unfilteredTotal.toLocaleString() %></strong> accounts.</div>
+            <% } %>
+
             <!-- Added notification -->
             <div class="dynamic-update-notification">
                 Values will dynamically update based on your filters

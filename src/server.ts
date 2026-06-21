@@ -535,12 +535,25 @@ app.get('/', async (req: Request<{}, {}, {}, QueryParams>, res: Response, next: 
       maxLastPost: new Date(safeMax(lastPostTimes))
     };
 
+    // Whether any filter is currently applied (drives the "showing X of Y" note).
+    const filterKeys = [
+      'minFollowers', 'maxFollowers', 'minFollowing', 'maxFollowing',
+      'minPosts', 'maxPosts', 'minPostsPerDay', 'maxPostsPerDay',
+      'minFollowerRatio', 'maxFollowerRatio', 'minJoined', 'maxJoined',
+      'minLastPost', 'maxLastPost'
+    ];
+    const q = req.query as Record<string, string | undefined>;
+    const filterActive = filterKeys.some(k => !!q[k]);
+
     console.log('Rendering template...');
-    res.render('index', { 
+    res.render('index', {
       followers: paginatedFollowers,
       currentPage: page,
       totalPages,
       totalFollowers: filteredFollowers.length,
+      filteredCount: filteredFollowers.length,
+      unfilteredTotal: followers.length,
+      filterActive,
       isImporting: importQueue.isCurrentlyImporting(),
       title: 'SkyWatch',
       subtitle: 'BlueSky Follower Analytics & Management',
