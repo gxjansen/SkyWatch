@@ -1,4 +1,3 @@
-import { BskyAgent } from '@atproto/api';
 import { AuthenticationService } from './auth/AuthenticationService';
 import { ProfileService } from './profile/ProfileService';
 import { FollowerService } from './follower/FollowerService';
@@ -12,9 +11,10 @@ export class BlueSkyService implements IBlueSkyService {
   private followerService: FollowerService;
   private dbService: DatabaseService;
 
-  constructor(handle: string, password: string) {
-    // Initialize services
-    this.authService = new AuthenticationService(handle, password);
+  constructor(ownerDid?: string) {
+    // Initialize services. Auth is OAuth-backed; ownerDid is optional for this
+    // single-user tool (the stored session is used when omitted).
+    this.authService = new AuthenticationService(ownerDid);
     this.dbService = new DatabaseService();
     this.profileService = new ProfileService(this.authService);
     this.followerService = new FollowerService(

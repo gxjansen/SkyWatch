@@ -19,9 +19,89 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles/main.css">
     <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <style>
+        .connect-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            border: 1px solid #f0b400;
+            background: rgba(240, 180, 0, 0.12);
+        }
+        .connect-banner-text { flex: 1; min-width: 240px; }
+        .connect-button {
+            white-space: nowrap;
+            background: #1185fe;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .connect-button:hover { background: #0a6cd6; }
+        .refresh-button {
+            margin-top: 10px;
+            background: #1185fe;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .refresh-button:hover { background: #0a6cd6; }
+        .refresh-button:disabled { opacity: 0.6; cursor: default; }
+        .refresh-hint { margin-left: 10px; font-size: 0.85em; opacity: 0.7; }
+        .freshness { margin-top: 8px; font-size: 0.85em; opacity: 0.8; }
+        .filter-result-count { margin-top: 12px; font-size: 0.9em; opacity: 0.85; }
+        .star-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.25em;
+            line-height: 1;
+            color: #888;
+            padding: 0;
+        }
+        .star-toggle.starred { color: #f5c518; }
+        .star-toggle:disabled { opacity: 0.5; cursor: default; }
+        .bulk-bar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 12px 0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: rgba(255, 59, 59, 0.10);
+            border: 1px solid #ff3b3b;
+        }
+        .bulk-unfollow-button {
+            background: #ff3b3b;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .bulk-unfollow-button:hover { background: #d62f2f; }
+        .bulk-unfollow-button:disabled { opacity: 0.6; cursor: default; }
+    </style>
 </head>
 <body>
     <div class="container">
+        <!-- Not-connected banner -->
+        <% if (!connected) { %>
+            <div class="card connect-banner">
+                <div class="connect-banner-text">
+                    <strong>Not connected to BlueSky.</strong>
+                    The data below is from a previous import. Connect your account to refresh stats, import new followers, and unfollow.
+                </div>
+                <a class="connect-button" href="/login?handle=<%= encodeURIComponent(mainUser.handle || '') %>">Connect BlueSky</a>
+            </div>
+        <% } %>
+
         <!-- Header Section -->
         <div class="card header-card">
             <div class="logo-container">
@@ -29,18 +109,39 @@
                 <div class="title-container">
                     <h1>
                         <span class="title-static">SkyWatch</span>
-                        <span class="title-dynamic">for <%= mainUser.displayName || mainUser.handle %></span>
+                        <% if (connected) { %>
+                            <span class="title-dynamic">for <%= mainUser.displayName || mainUser.handle %></span>
+                        <% } %>
                     </h1>
                     <p class="subtitle"><%= subtitle %></p>
                 </div>
             </div>
             <!-- Rest of the file remains exactly the same -->
             <div id="imported-count">
-                Total Imported Users: <%= totalFollowers %> 
-                (<%= Math.floor((totalFollowers / mainUser.followingCount) * 100) %>%)
+                Total Imported Users: <%= totalFollowers %><% if (connected && mainUser.followingCount > 0) { %>
+                (<%= Math.floor((totalFollowers / mainUser.followingCount) * 100) %>%)<% } %>
             </div>
+            <% if (connected) { %>
+                <button id="refresh-button" type="button" class="refresh-button" onclick="refreshFollowers(false)">Refresh followers</button>
+                <button id="refresh-all-button" type="button" class="refresh-button" onclick="refreshFollowers(true)">Re-fetch all data</button>
+                <span class="refresh-hint">Refresh adds new follows, updates stale data, and removes unfollowed accounts. Re-fetch all updates every account now.</span>
+                <div class="freshness">
+                    <% if (freshness.newest) { %>
+                        Data updated between <%= freshness.oldest.toISOString().slice(0,16).replace('T',' ') %>
+                        and <%= freshness.newest.toISOString().slice(0,16).replace('T',' ') %> UTC.
+                    <% } else { %>
+                        No profile data has been fetched yet.
+                    <% } %>
+                    <% if (freshness.staleCount > 0) { %>
+                        <strong><%= freshness.staleCount %></strong> account(s) older than <%= freshness.staleDays %> day(s)<% if (freshness.neverFetched > 0) { %> (<%= freshness.neverFetched %> never fetched)<% } %> will be refreshed on the next run.
+                    <% } else { %>
+                        All data is fresh (within <%= freshness.staleDays %> days).
+                    <% } %>
+                </div>
+            <% } %>
 
             <!-- Rest of the header card content -->
+            <% if (connected) { %>
             <div class="main-user-stats">
                 <h2>Your Account Stats</h2>
                 <div class="table-container">
@@ -86,6 +187,7 @@
                     </table>
                 </div>
             </div>
+            <% } %>
 
             <div id="import-progress-container" class="progress-container" style="display: <%= isImporting ? 'block' : 'none' %>;">
                 <div class="progress-bar">
@@ -100,6 +202,7 @@
             <div class="section-header" id="columnControlsHeader">Column Controls</div>
             <div class="section-content" id="columnControlsContent">
                 <div class="column-controls">
+                    <label><input type="checkbox" class="column-toggle" id="col-star" checked> Star</label>
                     <label><input type="checkbox" class="column-toggle" id="col-avatar" checked> Avatar</label>
                     <label><input type="checkbox" class="column-toggle" id="col-displayName" checked> Name</label>
                     <label><input type="checkbox" class="column-toggle" id="col-handle" checked> Handle</label>
@@ -110,6 +213,7 @@
                     <label><input type="checkbox" class="column-toggle" id="col-followerRatio" checked> Follower Ratio</label>
                     <label><input type="checkbox" class="column-toggle" id="col-joinedAt" checked> Joined</label>
                     <label><input type="checkbox" class="column-toggle" id="col-lastPostAt" checked> Last Post</label>
+                    <label><input type="checkbox" class="column-toggle" id="col-lastFetchedAt" checked> Last Fetched</label>
                     <label><input type="checkbox" class="column-toggle" id="col-actions" checked> Actions</label>
                 </div>
             </div>
@@ -155,6 +259,14 @@
                         <input type="date" name="minLastPost" value="<%= filters.minLastPost %>">
                         <input type="date" name="maxLastPost" value="<%= filters.maxLastPost %>">
                     </div>
+                    <div class="filter-group">
+                        <label>Starred</label>
+                        <select name="starred">
+                            <option value="" <%= !filters.starred ? 'selected' : '' %>>All</option>
+                            <option value="starred" <%= filters.starred === 'starred' ? 'selected' : '' %>>Starred only</option>
+                            <option value="unstarred" <%= filters.starred === 'unstarred' ? 'selected' : '' %>>Unstarred only</option>
+                        </select>
+                    </div>
                     <button type="submit">Apply Filters</button>
                 </form>
             </div>
@@ -163,16 +275,30 @@
         <!-- Data Table Section -->
         <div class="card">
             <h2>The accounts you follow</h2>
-            
+            <% if (filterActive) { %>
+                <div class="filter-result-count">Showing <strong><%= filteredCount.toLocaleString() %></strong> of <%= unfilteredTotal.toLocaleString() %> accounts (filtered).</div>
+            <% } else { %>
+                <div class="filter-result-count"><strong><%= unfilteredTotal.toLocaleString() %></strong> accounts.</div>
+            <% } %>
+
             <!-- Added notification -->
             <div class="dynamic-update-notification">
                 Values will dynamically update based on your filters
             </div>
-            
+
+            <% if (connected) { %>
+            <div id="bulk-bar" class="bulk-bar" style="display:none;">
+                <span id="selected-count">0 selected</span>
+                <button type="button" class="bulk-unfollow-button" onclick="bulkUnfollow()">Unfollow selected</button>
+            </div>
+            <% } %>
+
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
+                            <% if (connected) { %><th data-column="select"><input type="checkbox" id="select-all" title="Select all on this page"></th><% } %>
+                            <th data-column="star" title="Starred accounts are protected from bulk unfollow">★</th>
                             <th data-column="avatar">Avatar</th>
                             <th class="sortable <%= sortBy === 'displayName' ? sortOrder : '' %>" data-column="displayName">Name</th>
                             <th class="sortable <%= sortBy === 'handle' ? sortOrder : '' %>" data-column="handle">Handle</th>
@@ -185,12 +311,15 @@
                             <th class="sortable <%= sortBy === 'followerRatio' ? sortOrder : '' %>" data-column="followerRatio">Follower Ratio</th>
                             <th class="sortable <%= sortBy === 'joinedAt' ? sortOrder : '' %>" data-column="joinedAt">Joined</th>
                             <th class="sortable <%= sortBy === 'lastPostAt' ? sortOrder : '' %>" data-column="lastPostAt">Last Post</th>
+                            <th class="sortable <%= sortBy === 'lastFetchedAt' ? sortOrder : '' %>" data-column="lastFetchedAt">Last Fetched</th>
                             <th data-column="actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <% followers.forEach(function(follower) { %>
                             <tr>
+                                <% if (connected) { %><td data-column="select"><input type="checkbox" class="row-select" data-did="<%= follower.did %>"></td><% } %>
+                                <td data-column="star"><button type="button" class="star-toggle <%= follower.starred ? 'starred' : '' %>" data-did="<%= follower.did %>" onclick="toggleStar('<%= follower.did %>', this)" title="<%= follower.starred ? 'Starred (protected from bulk unfollow)' : 'Star to protect from bulk unfollow' %>"><%= follower.starred ? '★' : '☆' %></button></td>
                                 <td data-column="avatar">
                                     <% if (follower.avatar) { %>
                                         <img src="<%= follower.avatar %>" alt="<%= follower.handle %>'s avatar" class="avatar">
@@ -211,6 +340,7 @@
                                 <td data-column="followerRatio"><%= follower.followerRatio.toFixed(1) %></td>
                                 <td data-column="joinedAt"><%= follower.joinedAt ? follower.joinedAt.toISOString().split('T')[0] : 'N/A' %></td>
                                 <td data-column="lastPostAt"><%= follower.lastPostAt ? follower.lastPostAt.toISOString().split('T')[0] : 'N/A' %></td>
+                                <td data-column="lastFetchedAt"><%= follower.lastFetchedAt ? follower.lastFetchedAt.toISOString().split('T')[0] : 'Never' %></td>
                                 <td data-column="actions">
                                     <button onclick="unfollowUser('<%= follower.did %>')">Unfollow</button>
                                 </td>

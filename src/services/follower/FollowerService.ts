@@ -1,20 +1,13 @@
-import { BskyAgent, AppBskyGraphGetFollows } from '@atproto/api';
 import { IFollower } from '../../models/Follower';
 import { BlueSkyRateLimits } from '../rate/RateLimiter';
 import { AuthenticationService } from '../auth/AuthenticationService';
 import { ProfileService } from '../profile/ProfileService';
 import { DatabaseService } from '../db/DatabaseService';
 
-interface FollowRecord {
-  uri: string;
-  did: string;
-}
-
 export class FollowerService {
   private authService: AuthenticationService;
   private profileService: ProfileService;
   private dbService: DatabaseService;
-  private agent: BskyAgent;
 
   // Callback for tracking imported followers
   onFollowerImported?: (follower: Partial<IFollower>) => void;
@@ -27,7 +20,6 @@ export class FollowerService {
     this.authService = authService;
     this.profileService = profileService;
     this.dbService = dbService;
-    this.agent = authService.getAgent();
   }
 
   /**
@@ -37,19 +29,14 @@ export class FollowerService {
    */
   async getFollowers(cursor?: string) {
     console.log(`[FollowerService] Fetching followers. Cursor: ${cursor || 'initial'}`);
-    if (!this.agent.session) {
-      const authSuccess = await this.authService.authenticate();
-      if (!authSuccess) {
-        throw new Error('Failed to authenticate with BlueSky');
-      }
-    }
+    const agent = await this.authService.requireAgent();
 
     try {
       // Wait for rate limit
       await BlueSkyRateLimits.FOLLOWS.waitForNextSlot();
-      
-      return await this.agent.getFollows({
-        actor: this.agent.session!.did,
+
+      return await agent.app.bsky.graph.getFollows({
+        actor: this.authService.getCurrentUserDid(),
         cursor: cursor,
         limit: 100 // Maximum allowed by BlueSky API
       });
@@ -59,36 +46,6 @@ export class FollowerService {
         throw error;
       }
       throw error;
-    }
-  }
-
-  /**
-   * Get follow record for a user
-   * @param did Decentralized Identifier of the user
-   * @returns Promise resolving to the follow record or null
-   */
-  private async getFollowRecord(did: string): Promise<FollowRecord | null> {
-    try {
-      await BlueSkyRateLimits.GENERAL.waitForNextSlot();
-      const response = await this.agent.api.app.bsky.graph.getFollows({
-        actor: this.agent.session!.did,
-        limit: 100
-      });
-
-      // Find the follow record for this user
-      const followRecord = response.data.follows.find(f => f.did === did) as AppBskyGraphGetFollows.OutputSchema['follows'][0];
-      if (!followRecord || !followRecord.uri) {
-        console.log(`[FollowerService] Follow record not found for ${did}`);
-        return null;
-      }
-
-      return {
-        did: followRecord.did,
-        uri: followRecord.uri as string
-      };
-    } catch (error: any) {
-      console.error(`[FollowerService] Error getting follow record for ${did}:`, error);
-      return null;
     }
   }
 
@@ -103,27 +60,22 @@ export class FollowerService {
       await BlueSkyRateLimits.UNFOLLOW.waitForNextSlot();
 
       // Ensure we're authenticated
-      if (!this.agent.session) {
-        const authSuccess = await this.authService.authenticate();
-        if (!authSuccess) {
-          throw new Error('Failed to authenticate with BlueSky');
-        }
+      const agent = await this.authService.requireAgent();
+
+      // The follow-record URI is returned on the profile's viewer state. This
+      // works no matter how many accounts you follow (no pagination needed).
+      const profile = await agent.app.bsky.actor.getProfile({ actor: did });
+      const followUri = profile.data.viewer?.following;
+
+      if (!followUri) {
+        // Not actually following (already unfollowed / stale row): reconcile the
+        // local DB and treat as success, since the desired end state holds.
+        await this.dbService.removeFollower(did);
+        return true;
       }
 
-      // Get the follow record first
-      const followRecord = await this.getFollowRecord(did);
-      if (!followRecord) {
-        throw new Error('Could not find follow record');
-      }
-
-      // Get the rkey from the follow record URI
-      const rkey = followRecord.uri.split('/').pop();
-      if (!rkey) {
-        throw new Error('Invalid follow record URI');
-      }
-
-      // Unfollow using the rkey
-      await this.agent.deleteFollow(rkey);
+      // Delete the follow record by its URI.
+      await agent.deleteFollow(followUri);
 
       // Remove from local database
       await this.dbService.removeFollower(did);
@@ -145,14 +97,9 @@ export class FollowerService {
   async fetchAndStoreFollowers(): Promise<Partial<IFollower>[]> {
     try {
       console.log('[FollowerService] Starting follower fetch and store process');
-      
-      // Ensure we're authenticated
-      if (!this.agent.session) {
-        const authSuccess = await this.authService.authenticate();
-        if (!authSuccess) {
-          throw new Error('Failed to authenticate with BlueSky');
-        }
-      }
+
+      // Ensure we're authenticated before starting the batch loop.
+      await this.authService.requireAgent();
 
       // Wait for rate limit
       await BlueSkyRateLimits.FOLLOWS.waitForNextSlot();

@@ -2,7 +2,7 @@
 const TIME_PERIODS = {
   FIVE_MINUTES: 5 * 60 * 1000,
   ONE_HOUR: 60 * 60 * 1000,
-  ONE_DAY: 24 * 60 * 1000
+  ONE_DAY: 24 * 60 * 60 * 1000
 };
 
 // BlueSky's rate limits

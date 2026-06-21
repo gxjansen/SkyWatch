@@ -81,32 +81,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Import progress functionality
   let importProgressInterval;
+  let refreshActive = false;
 
   function checkImportProgress() {
     fetch('/import-progress')
     .then(response => response.json())
     .then(data => {
-      if (data.isImporting) {
-        importProgressContainer.style.display = 'block';
-      }
-      
-      const progressPercentage = data.total > 0 
-        ? Math.min(Math.round((data.total / 500) * 100), 100)
-        : 0;
-      
-      progressBarFill.style.width = `${progressPercentage}%`;
-      progressText.textContent = `Importing: ${data.total} accounts`;
-      importedCountEl.textContent = `Total Imported Users: ${data.total}`;
-
       if (!data.isImporting) {
         clearInterval(importProgressInterval);
         importProgressContainer.style.display = 'none';
+        // After a user-triggered refresh, reload to show updated rows/counts.
+        if (refreshActive) {
+          refreshActive = false;
+          window.location.reload();
+        }
+        return;
       }
+
+      importProgressContainer.style.display = 'block';
+
+      // Progress is "accounts processed this pass" out of the live follow count.
+      // (Don't use the DB document count — it barely changes during a refresh.)
+      const processed = typeof data.processed === 'number' ? data.processed : 0;
+      const target = data.target && data.target > 0 ? data.target : 0;
+      const progressPercentage = target > 0
+        ? Math.min(Math.round((processed / target) * 100), 100)
+        : 0;
+
+      progressBarFill.style.width = `${progressPercentage}%`;
+      progressText.textContent = target
+        ? `Refreshing: ${processed} / ${target} accounts (${progressPercentage}%)`
+        : `Refreshing: ${processed} accounts`;
+      importedCountEl.textContent = `Total Imported Users: ${data.total}`;
     })
     .catch(error => {
       console.error('Error checking import progress:', error);
     });
   }
+
+  // Refresh followers. force=false → add new + refresh stale + prune removed.
+  // force=true → re-fetch every account regardless of freshness.
+  window.refreshFollowers = function(force) {
+    const btn = document.getElementById('refresh-button');
+    const btnAll = document.getElementById('refresh-all-button');
+    const resetButtons = () => {
+      if (btn) { btn.disabled = false; btn.textContent = 'Refresh followers'; }
+      if (btnAll) { btnAll.disabled = false; btnAll.textContent = 'Re-fetch all data'; }
+    };
+
+    if (btn) btn.disabled = true;
+    if (btnAll) btnAll.disabled = true;
+    if (force && btnAll) btnAll.textContent = 'Re-fetching…';
+    else if (btn) btn.textContent = 'Refreshing…';
+
+    fetch('/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: !!force })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        alert('Could not start refresh: ' + (data.message || 'unknown error'));
+        resetButtons();
+        return;
+      }
+      refreshActive = true;
+      importProgressContainer.style.display = 'block';
+      progressText.textContent = 'Refreshing…';
+      if (importProgressInterval) clearInterval(importProgressInterval);
+      importProgressInterval = setInterval(checkImportProgress, 2000);
+    })
+    .catch(error => {
+      console.error('Error starting refresh:', error);
+      alert('An error occurred while starting the refresh');
+      resetButtons();
+    });
+  };
+
+  // If an import is already running when the page loads, show live progress.
+  checkImportProgress();
 
   // Filter form submission
   window.applyFilters = function(event) {
@@ -169,6 +223,128 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch(error => {
       console.error('Error:', error);
       alert('An error occurred while unfollowing');
+    });
+  };
+
+  // Bulk selection + unfollow
+  const selectAll = document.getElementById('select-all');
+  const bulkBar = document.getElementById('bulk-bar');
+  const selectedCountEl = document.getElementById('selected-count');
+
+  function getRowCheckboxes() {
+    return Array.from(document.querySelectorAll('.row-select'));
+  }
+
+  function updateBulkBar() {
+    if (!bulkBar) return;
+    const boxes = getRowCheckboxes();
+    const checked = boxes.filter(cb => cb.checked);
+    if (selectedCountEl) selectedCountEl.textContent = `${checked.length} selected`;
+    bulkBar.style.display = checked.length > 0 ? 'flex' : 'none';
+    if (selectAll) {
+      selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+      selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+    }
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      getRowCheckboxes().forEach(cb => { cb.checked = selectAll.checked; });
+      updateBulkBar();
+    });
+  }
+  getRowCheckboxes().forEach(cb => cb.addEventListener('change', updateBulkBar));
+
+  // Toggle the starred (protected) flag on an account.
+  window.toggleStar = function(did, btn) {
+    const makeStarred = !btn.classList.contains('starred');
+    btn.disabled = true;
+    fetch('/star', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ did, starred: makeStarred })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        btn.classList.toggle('starred', !!data.starred);
+        btn.textContent = data.starred ? '★' : '☆';
+        btn.title = data.starred ? 'Starred (protected from bulk unfollow)' : 'Star to protect from bulk unfollow';
+      } else {
+        alert('Failed to update star: ' + (data.message || 'unknown error'));
+      }
+      btn.disabled = false;
+    })
+    .catch(error => {
+      console.error('Star toggle error:', error);
+      alert('An error occurred while updating the star');
+      btn.disabled = false;
+    });
+  };
+
+  let bulkProgressInterval;
+
+  function checkBulkProgress() {
+    fetch('/unfollow-progress')
+    .then(response => response.json())
+    .then(data => {
+      const total = data.total || 0;
+      const processed = data.processed || 0;
+      const pct = total > 0 ? Math.min(Math.round((processed / total) * 100), 100) : 0;
+
+      importProgressContainer.style.display = 'block';
+      progressBarFill.style.width = `${pct}%`;
+      progressText.textContent = `Unfollowing: ${processed} / ${total} (${pct}%)`;
+
+      if (!data.running) {
+        clearInterval(bulkProgressInterval);
+        importProgressContainer.style.display = 'none';
+        const parts = [`Unfollowed ${data.unfollowed || 0}`];
+        if (data.skipped) parts.push(`${data.skipped} skipped (starred)`);
+        if (data.failed) parts.push(`${data.failed} failed`);
+        alert(parts.join('. ') + '.');
+        // Reload to reflect removed rows and updated counts (preserves filters).
+        window.location.reload();
+      }
+    })
+    .catch(error => {
+      console.error('Error checking bulk unfollow progress:', error);
+    });
+  }
+
+  window.bulkUnfollow = function() {
+    const dids = getRowCheckboxes().filter(cb => cb.checked).map(cb => cb.dataset.did);
+    if (dids.length === 0) return;
+    if (!confirm(`Unfollow ${dids.length} selected account(s)? This cannot be undone.`)) {
+      return;
+    }
+
+    const btn = document.querySelector('.bulk-unfollow-button');
+    if (btn) { btn.disabled = true; btn.textContent = `Unfollowing ${dids.length}…`; }
+
+    fetch('/unfollow-bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dids })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        alert('Could not start bulk unfollow: ' + (data.message || 'unknown error'));
+        if (btn) { btn.disabled = false; btn.textContent = 'Unfollow selected'; }
+        return;
+      }
+      // Job runs server-side; poll for progress.
+      importProgressContainer.style.display = 'block';
+      progressText.textContent = 'Unfollowing…';
+      progressBarFill.style.width = '0%';
+      if (bulkProgressInterval) clearInterval(bulkProgressInterval);
+      bulkProgressInterval = setInterval(checkBulkProgress, 1500);
+    })
+    .catch(error => {
+      console.error('Bulk unfollow error:', error);
+      alert('An error occurred during bulk unfollow');
+      if (btn) { btn.disabled = false; btn.textContent = 'Unfollow selected'; }
     });
   };
 });

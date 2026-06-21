@@ -6,6 +6,8 @@ import { IBlueSkyService } from './interfaces/IBlueSkyService';
 
 export interface ImportOptions {
   clearExisting?: boolean;
+  // Re-fetch every account regardless of how recently it was last fetched.
+  forceRefresh?: boolean;
 }
 
 export class ImportQueue {
@@ -14,6 +16,12 @@ export class ImportQueue {
   private isImporting: boolean = false;
   private progressBar?: cliProgress.SingleBar;
   private totalFollowersToImport: number = 0;
+  // DIDs still followed as of the current pass; used to prune removed accounts.
+  private seenDids: Set<string> = new Set();
+  // Accounts processed (added, refreshed, or skipped-as-fresh) this pass.
+  private processedCount: number = 0;
+  // Accounts whose data is older than this are re-fetched; newer ones are skipped.
+  private staleCutoff: Date = new Date(0);
 
   constructor(blueSkyService: IBlueSkyService) {
     this.blueSkyService = blueSkyService;
@@ -83,11 +91,35 @@ export class ImportQueue {
       const existingCount = await Follower.countDocuments();
       console.log(`[ImportQueue] Total followers to import: ${this.totalFollowersToImport} (${existingCount} existing)`);
 
-      // Initialize progress bar with current progress
-      this.initializeProgressBar(this.totalFollowersToImport, existingCount);
+      // Progress is tracked by accounts processed this pass (out of the live
+      // follow count), so it advances even when refreshing existing records.
+      this.initializeProgressBar(this.totalFollowersToImport, 0);
+
+      // Reset per-pass tracking.
+      this.seenDids = new Set();
+      this.processedCount = 0;
+
+      // Accounts not refreshed within this window are re-fetched (default 7 days).
+      // A forced refresh sets the cutoff in the future so every account is re-fetched.
+      if (options.forceRefresh) {
+        this.staleCutoff = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      } else {
+        const staleDays = Number(process.env.REFRESH_STALE_DAYS || 7);
+        this.staleCutoff = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000);
+      }
 
       // Start the import process
       await this.importFollowersBatched();
+
+      // Prune accounts that are no longer followed (unfollowed since last import).
+      // Skip when doing a full clear+reimport, and only prune if we actually saw
+      // follows this pass (guards against wiping everything on an anomaly).
+      if (!options.clearExisting && this.seenDids.size > 0) {
+        const pruneResult = await Follower.deleteMany({ did: { $nin: Array.from(this.seenDids) } });
+        if (pruneResult.deletedCount) {
+          console.log(`[ImportQueue] Pruned ${pruneResult.deletedCount} account(s) no longer followed`);
+        }
+      }
     } catch (error) {
       console.error('[ImportQueue] Import process failed:', error);
       this.isImporting = false;
@@ -121,56 +153,65 @@ export class ImportQueue {
 
       // Process each follower
       for (const follower of followersResponse.data.follows) {
+        // Record that this account is still followed (used for pruning).
+        this.seenDids.add(follower.did);
         try {
-          // Check if we already have this follower
           const existingFollower = await Follower.findOne({ did: follower.did });
-          if (existingFollower) {
-            console.log(`[ImportQueue] Skipping existing follower: ${follower.handle}`);
-            continue;
+
+          // Skip accounts whose data is still fresh; re-fetch new or stale ones.
+          const isFresh = !!(existingFollower
+            && existingFollower.lastFetchedAt
+            && existingFollower.lastFetchedAt > this.staleCutoff);
+
+          if (isFresh) {
+            console.log(`[ImportQueue] Fresh, skipping: ${follower.handle}`);
+          } else {
+            // Fetch profile + latest post (new account, or stale data).
+            const profileResponse = await this.blueSkyService.getProfile(follower.did);
+            const profile = profileResponse.data;
+            const latestPostTimestamp = await this.blueSkyService.getLatestPostTimestamp(follower.did);
+
+            const followerData: Partial<IFollower> = {
+              did: follower.did,
+              handle: follower.handle,
+              displayName: follower.displayName,
+              avatar: follower.avatar,
+              followerCount: profile.followersCount || 0,
+              followingCount: profile.followsCount || 0,
+              postCount: profile.postsCount || 0,
+              joinedAt: profile.createdAt ? new Date(profile.createdAt) : undefined,
+              lastPostAt: latestPostTimestamp,
+              lastFetchedAt: new Date()
+            };
+            // Preserve the original first-seen date; only set it for new records.
+            if (!existingFollower) {
+              followerData.followedAt = new Date();
+            }
+
+            const savedFollower = await Follower.findOneAndUpdate(
+              { did: follower.did },
+              followerData,
+              { upsert: true, new: true }
+            );
+
+            savedFollower.calculateFollowerRatio();
+            savedFollower.calculatePostsPerDay();
+            await savedFollower.save();
+
+            console.log(`[ImportQueue] ${existingFollower ? 'Refreshed' : 'Imported'} follower: ${follower.handle}`);
           }
-
-          // Fetch additional profile information
-          const profileResponse = await this.blueSkyService.getProfile(follower.did);
-          const profile = profileResponse.data;
-
-          // Get latest post timestamp
-          const latestPostTimestamp = await this.blueSkyService.getLatestPostTimestamp(follower.did);
-
-          const followerData: Partial<IFollower> = {
-            did: follower.did,
-            handle: follower.handle,
-            displayName: follower.displayName,
-            avatar: follower.avatar,
-            followedAt: new Date(),
-            followerCount: profile.followersCount || 0,
-            followingCount: profile.followsCount || 0,
-            postCount: profile.postsCount || 0,
-            joinedAt: profile.createdAt ? new Date(profile.createdAt) : undefined,
-            lastPostAt: latestPostTimestamp
-          };
-
-          // Save new follower
-          const savedFollower = await Follower.create(followerData);
-
-          // Calculate follower ratio and posts per day
-          savedFollower.calculateFollowerRatio();
-          savedFollower.calculatePostsPerDay();
-          await savedFollower.save();
-
-          console.log(`[ImportQueue] Imported follower: ${follower.handle}`);
         } catch (profileError) {
           console.error(`[ImportQueue] Error processing follower ${follower.handle}:`, profileError);
+        } finally {
+          this.processedCount++;
         }
 
-        // Update progress bar
+        // Update progress bar by accounts processed this pass.
         if (this.progressBar) {
-          const totalFollowers = await Follower.countDocuments();
-          this.progressBar.update(totalFollowers);
-
-          // Emit progress if socket is available
+          this.progressBar.update(this.processedCount);
           if (this.socketServer) {
             this.socketServer.emit('followerImportProgress', {
-              total: totalFollowers,
+              total: this.processedCount,
               complete: false
             });
           }
@@ -190,5 +231,13 @@ export class ImportQueue {
 
   isCurrentlyImporting(): boolean {
     return this.isImporting;
+  }
+
+  getImportTarget(): number {
+    return this.totalFollowersToImport;
+  }
+
+  getProcessedCount(): number {
+    return this.processedCount;
   }
 }
