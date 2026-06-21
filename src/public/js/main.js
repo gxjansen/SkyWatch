@@ -282,6 +282,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  let bulkProgressInterval;
+
+  function checkBulkProgress() {
+    fetch('/unfollow-progress')
+    .then(response => response.json())
+    .then(data => {
+      const total = data.total || 0;
+      const processed = data.processed || 0;
+      const pct = total > 0 ? Math.min(Math.round((processed / total) * 100), 100) : 0;
+
+      importProgressContainer.style.display = 'block';
+      progressBarFill.style.width = `${pct}%`;
+      progressText.textContent = `Unfollowing: ${processed} / ${total} (${pct}%)`;
+
+      if (!data.running) {
+        clearInterval(bulkProgressInterval);
+        importProgressContainer.style.display = 'none';
+        const parts = [`Unfollowed ${data.unfollowed || 0}`];
+        if (data.skipped) parts.push(`${data.skipped} skipped (starred)`);
+        if (data.failed) parts.push(`${data.failed} failed`);
+        alert(parts.join('. ') + '.');
+        // Reload to reflect removed rows and updated counts (preserves filters).
+        window.location.reload();
+      }
+    })
+    .catch(error => {
+      console.error('Error checking bulk unfollow progress:', error);
+    });
+  }
+
   window.bulkUnfollow = function() {
     const dids = getRowCheckboxes().filter(cb => cb.checked).map(cb => cb.dataset.did);
     if (dids.length === 0) return;
@@ -299,35 +329,17 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     .then(response => response.json())
     .then(data => {
-      const results = data.results || [];
-      let succeeded = 0;
-      results.forEach(res => {
-        if (res.success) {
-          succeeded++;
-          const cb = document.querySelector(`.row-select[data-did="${res.did}"]`);
-          const row = cb && cb.closest('tr');
-          if (row) row.remove();
-        }
-      });
-
-      // Update the total count.
-      const m = importedCountEl.textContent.match(/\d+/);
-      if (m) {
-        importedCountEl.textContent = `Total Imported Users: ${Math.max(0, parseInt(m[0]) - succeeded)}`;
+      if (!data.success) {
+        alert('Could not start bulk unfollow: ' + (data.message || 'unknown error'));
+        if (btn) { btn.disabled = false; btn.textContent = 'Unfollow selected'; }
+        return;
       }
-
-      if (data.skipped || data.failedCount) {
-        const parts = [`Unfollowed ${succeeded}`];
-        if (data.skipped) parts.push(`${data.skipped} skipped (starred)`);
-        if (data.failedCount) {
-          const firstError = (results.find(r => !r.success && !r.skipped) || {}).message || 'unknown error';
-          parts.push(`${data.failedCount} failed (e.g. "${firstError}")`);
-        }
-        alert(parts.join('. ') + '.');
-      }
-
-      if (btn) { btn.disabled = false; btn.textContent = 'Unfollow selected'; }
-      updateBulkBar();
+      // Job runs server-side; poll for progress.
+      importProgressContainer.style.display = 'block';
+      progressText.textContent = 'Unfollowing…';
+      progressBarFill.style.width = '0%';
+      if (bulkProgressInterval) clearInterval(bulkProgressInterval);
+      bulkProgressInterval = setInterval(checkBulkProgress, 1500);
     })
     .catch(error => {
       console.error('Bulk unfollow error:', error);

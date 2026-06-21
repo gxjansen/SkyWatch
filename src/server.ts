@@ -276,8 +276,19 @@ app.post('/unfollow', async (req: Request, res: Response) => {
   }
 });
 
-// Bulk unfollow endpoint: unfollows each DID sequentially (respecting rate
-// limits) and returns a per-account result so the UI can report partial failures.
+// Progress state for the in-flight bulk unfollow (single-user tool, one at a time).
+let bulkUnfollowState = {
+  running: false,
+  total: 0,
+  processed: 0,
+  unfollowed: 0,
+  skipped: 0,
+  failed: 0
+};
+
+// Bulk unfollow endpoint: starts a background job that unfollows each DID
+// sequentially (respecting rate limits) and updates progress. Starred accounts
+// are protected and skipped. The client polls /unfollow-progress for status.
 app.post('/unfollow-bulk', async (req: Request, res: Response) => {
   try {
     const { dids } = req.body;
@@ -290,42 +301,51 @@ app.post('/unfollow-bulk', async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Not connected to BlueSky. Visit /login.' });
     }
 
-    // Starred accounts are protected: never bulk-unfollow them.
-    const starredDocs = await Follower.find(
-      { did: { $in: dids.map(String) }, starred: true },
-      { did: 1 }
-    ).lean();
-    const starredSet = new Set(starredDocs.map(d => d.did));
-
-    const results: { did: string; success: boolean; skipped?: boolean; message?: string }[] = [];
-    for (const did of dids) {
-      const didStr = String(did);
-      if (starredSet.has(didStr)) {
-        results.push({ did: didStr, success: false, skipped: true, message: 'Starred (protected)' });
-        continue;
-      }
-      try {
-        await blueSkyService.unfollowUser(didStr);
-        results.push({ did: didStr, success: true });
-      } catch (err: any) {
-        results.push({ did: didStr, success: false, message: err?.message || 'Failed' });
-      }
+    if (bulkUnfollowState.running) {
+      return res.status(409).json({ success: false, message: 'A bulk unfollow is already in progress' });
     }
 
-    const unfollowed = results.filter(r => r.success).length;
-    const skipped = results.filter(r => r.skipped).length;
-    const failedCount = results.filter(r => !r.success && !r.skipped).length;
-    res.json({
-      success: failedCount === 0,
-      unfollowed,
-      skipped,
-      failedCount,
-      results
-    });
+    const list = dids.map(String);
+    bulkUnfollowState = { running: true, total: list.length, processed: 0, unfollowed: 0, skipped: 0, failed: 0 };
+
+    // Run in the background; the client polls /unfollow-progress.
+    (async () => {
+      try {
+        // Starred accounts are protected: never bulk-unfollow them.
+        const starredDocs = await Follower.find({ did: { $in: list }, starred: true }, { did: 1 }).lean();
+        const starredSet = new Set(starredDocs.map(d => d.did));
+
+        for (const did of list) {
+          if (starredSet.has(did)) {
+            bulkUnfollowState.skipped++;
+          } else {
+            try {
+              await blueSkyService.unfollowUser(did);
+              bulkUnfollowState.unfollowed++;
+            } catch (err) {
+              bulkUnfollowState.failed++;
+              console.error(`[bulk] Failed to unfollow ${did}:`, err);
+            }
+          }
+          bulkUnfollowState.processed++;
+        }
+      } catch (err) {
+        console.error('[bulk] Bulk unfollow job error:', err);
+      } finally {
+        bulkUnfollowState.running = false;
+      }
+    })();
+
+    res.json({ success: true, started: true, total: list.length });
   } catch (error: any) {
     console.error('Error in bulk unfollow endpoint:', error);
     res.status(500).json({ success: false, message: error.message || 'Bulk unfollow failed' });
   }
+});
+
+// Bulk unfollow progress polling endpoint.
+app.get('/unfollow-progress', (req: Request, res: Response) => {
+  res.json(bulkUnfollowState);
 });
 
 // Toggle the "starred" (protected) flag on an account.
