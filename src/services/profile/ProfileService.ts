@@ -46,13 +46,27 @@ export class ProfileService {
       console.log(`[ProfileService] Fetching latest post for DID: ${did}`);
       const feed = await agent.app.bsky.feed.getAuthorFeed({
         actor: did,
-        limit: 1
+        limit: 30
       });
 
-      if (feed.data.feed.length > 0) {
-        return new Date(feed.data.feed[0].post.indexedAt);
+      // The author feed surfaces pinned posts and reposts out of chronological
+      // order, and a repost's post.indexedAt is the *original* post's date. So we
+      // can't just take feed[0]. Instead, take the most recent timestamp among
+      // the account's own (non-reposted) posts.
+      let latest: number | undefined;
+      for (const item of feed.data.feed) {
+        // Skip reposts (the timestamp would belong to someone else's post).
+        if ((item.reason as any)?.$type === 'app.bsky.feed.defs#reasonRepost') continue;
+        // Skip anything not authored by this account.
+        if (item.post?.author?.did !== did) continue;
+
+        const ts = new Date(item.post.indexedAt).getTime();
+        if (!Number.isNaN(ts) && (latest === undefined || ts > latest)) {
+          latest = ts;
+        }
       }
-      return undefined;
+
+      return latest !== undefined ? new Date(latest) : undefined;
     } catch (error: any) {
       if (error?.status === 429 && error?.headers) {
         BlueSkyRateLimits.GENERAL.updateFromHeaders(error.headers);

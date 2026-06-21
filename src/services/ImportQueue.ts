@@ -6,6 +6,8 @@ import { IBlueSkyService } from './interfaces/IBlueSkyService';
 
 export interface ImportOptions {
   clearExisting?: boolean;
+  // Re-fetch every account regardless of how recently it was last fetched.
+  forceRefresh?: boolean;
 }
 
 export class ImportQueue {
@@ -98,8 +100,13 @@ export class ImportQueue {
       this.processedCount = 0;
 
       // Accounts not refreshed within this window are re-fetched (default 7 days).
-      const staleDays = Number(process.env.REFRESH_STALE_DAYS || 7);
-      this.staleCutoff = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000);
+      // A forced refresh sets the cutoff in the future so every account is re-fetched.
+      if (options.forceRefresh) {
+        this.staleCutoff = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      } else {
+        const staleDays = Number(process.env.REFRESH_STALE_DAYS || 7);
+        this.staleCutoff = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000);
+      }
 
       // Start the import process
       await this.importFollowersBatched();

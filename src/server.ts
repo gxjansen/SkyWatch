@@ -323,8 +323,10 @@ app.post('/import', async (req: Request, res: Response) => {
     if (importQueue.isCurrentlyImporting()) {
       return res.status(409).json({ success: false, message: 'A refresh is already in progress' });
     }
+    // `force` re-fetches every account; otherwise only new/stale ones are fetched.
+    const force = req.body?.force === true || req.query.force === 'true';
     // Fire-and-forget; the client polls /import-progress for status.
-    importQueue.startImport({ clearExisting: false })
+    importQueue.startImport({ clearExisting: false, forceRefresh: force })
       .catch(err => console.error('Refresh import failed:', err));
     res.json({ success: true });
   } catch (error: any) {

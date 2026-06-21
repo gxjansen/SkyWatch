@@ -110,8 +110,9 @@
                 (<%= Math.floor((totalFollowers / mainUser.followingCount) * 100) %>%)<% } %>
             </div>
             <% if (connected) { %>
-                <button id="refresh-button" type="button" class="refresh-button" onclick="refreshFollowers()">Refresh followers</button>
-                <span class="refresh-hint">Adds new follows, refreshes stale data, and removes accounts you no longer follow.</span>
+                <button id="refresh-button" type="button" class="refresh-button" onclick="refreshFollowers(false)">Refresh followers</button>
+                <button id="refresh-all-button" type="button" class="refresh-button" onclick="refreshFollowers(true)">Re-fetch all data</button>
+                <span class="refresh-hint">Refresh adds new follows, updates stale data, and removes unfollowed accounts. Re-fetch all updates every account now.</span>
                 <div class="freshness">
                     <% if (freshness.newest) { %>
                         Data updated between <%= freshness.oldest.toISOString().slice(0,16).replace('T',' ') %>

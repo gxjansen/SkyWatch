@@ -115,17 +115,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Refresh followers: triggers an incremental import (add new + prune removed).
-  window.refreshFollowers = function() {
+  // Refresh followers. force=false → add new + refresh stale + prune removed.
+  // force=true → re-fetch every account regardless of freshness.
+  window.refreshFollowers = function(force) {
     const btn = document.getElementById('refresh-button');
-    if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+    const btnAll = document.getElementById('refresh-all-button');
+    const resetButtons = () => {
+      if (btn) { btn.disabled = false; btn.textContent = 'Refresh followers'; }
+      if (btnAll) { btnAll.disabled = false; btnAll.textContent = 'Re-fetch all data'; }
+    };
 
-    fetch('/import', { method: 'POST' })
+    if (btn) btn.disabled = true;
+    if (btnAll) btnAll.disabled = true;
+    if (force && btnAll) btnAll.textContent = 'Re-fetching…';
+    else if (btn) btn.textContent = 'Refreshing…';
+
+    fetch('/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: !!force })
+    })
     .then(response => response.json())
     .then(data => {
       if (!data.success) {
         alert('Could not start refresh: ' + (data.message || 'unknown error'));
-        if (btn) { btn.disabled = false; btn.textContent = 'Refresh followers'; }
+        resetButtons();
         return;
       }
       refreshActive = true;
@@ -137,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch(error => {
       console.error('Error starting refresh:', error);
       alert('An error occurred while starting the refresh');
-      if (btn) { btn.disabled = false; btn.textContent = 'Refresh followers'; }
+      resetButtons();
     });
   };
 
